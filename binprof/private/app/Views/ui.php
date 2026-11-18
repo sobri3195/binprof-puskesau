@@ -8,6 +8,7 @@ const NAVIGATION = [
     '/app/peta' => ['Peta fasilitas', 'map', '◉'],
     '/app/peta-sebaran' => ['Peta sebaran', 'map', '◌'],
     '/app/mutasi' => ['Mutasi', 'transfers.request', '⇄'],
+    '/app/erm' => ['E-RM dan Rikkes', '@clinical', '✚'],
     '/app/notifikasi' => ['Notifikasi', 'notifications', '◈'],
     '/app/log' => ['Log aktivitas', 'audit', '▤'],
     '/app/users' => ['Pengguna', 'users', '☷'],
@@ -40,7 +41,7 @@ function page(string $title, callable $content, ?array $user = null, string $sec
                 <div class="brand"><span class="brand-symbol" aria-hidden="true">＋</span><div>BINPROFKES<small>KESEHATAN TNI AU</small></div></div>
                 <nav aria-label="Menu utama">
                     <?php foreach (NAVIGATION as $path => [$label, $permission, $symbol]):
-                        if (can($user, $permission)): ?>
+                        if ($permission === '@clinical' ? ($user['clinical_menu'] ?? false) : can($user, $permission)): ?>
                             <a href="<?= e(url($path)) ?>" <?= $section === $path ? 'aria-current="page"' : '' ?>>
                                 <span aria-hidden="true"><?= e($symbol) ?></span><?= e($label) ?>
                             </a>

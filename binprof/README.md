@@ -2,13 +2,13 @@
 
 Sistem Informasi Bina Profesional Kesehatan TNI AU. Aplikasi PHP native dalam folder `binprof/`, dengan data MySQL/MariaDB dan aset lokal.
 
-Rilis awal ini mencakup autentikasi administratif, personel, diklat, mutasi, master, log, dan eksplorasi fasilitas dengan Leaflet dan Three.js. Implementasi E-RM/Rikkes, pemulihan mandiri melalui email, dan integrasi eksternal masih memerlukan pekerjaan terpisah. Gunakan data sintetis untuk peninjauan.
+BINPROFKES mencakup autentikasi, ikhtisar, personel, diklat, mutasi, master, log, eksplorasi fasilitas dengan Leaflet/Three.js, dan modul E-RM/Rikkes. Gunakan data sintetis untuk peninjauan. Alur di balik login situs referensi direkonstruksi dari spesifikasi.
 
 ## Instalasi di cPanel
 
 1. Gunakan PHP 8.4 atau 8.5 dengan patch terbaru dari penyedia. Aktifkan `pdo_mysql`, `mbstring`, `sodium`, `fileinfo`, `iconv`, dan `zlib`. Tetapkan `upload_max_filesize=10M` dan `post_max_size=12M` atau lebih untuk lampiran sertifikat.
 2. Unggah folder `binprof`. Tetapkan document root subdomain ke `/home/AKUN/binprof/public`. Ganti `AKUN` sesuai akun hosting. Aktifkan HTTPS di subdomain.
-3. Buat database kosong dan akun migrasi melalui cPanel. Di phpMyAdmin, pilih database tersebut dan impor `private/database/binprofkes.sql`, lalu `private/database/migrations/002_interactive_maps.sql`. Pada database yang sudah memakai skema awal, buat backup dan jalankan hanya migrasi 002 jika belum tercatat. Skema situs lama memerlukan pemetaan dan migrasi data tersendiri.
+3. Buat database kosong dan akun migrasi melalui cPanel. Di phpMyAdmin, pilih database tersebut dan impor `private/database/binprofkes.sql`, lalu migrasi `002_interactive_maps.sql` dan `003_clinical_records.sql` dari `private/database/migrations/`. Untuk instalasi yang sudah memakai skema peta, buat backup lalu jalankan hanya migrasi yang belum tercatat. Skema situs lama memerlukan pemetaan dan migrasi data tersendiri.
 4. Salin `private/config/config.example.php` menjadi `private/config/config.local.php`. Tetapkan DSN, akun runtime, origin lengkap, zona waktu, dan kunci. Buat tiga nilai berbeda untuk kunci AEAD dan dua pepper. Jalankan perintah berikut satu kali per nilai dari terminal privat. Simpan bersama konfigurasi privat dan backup terenkripsi.
    ```sh
    php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
@@ -39,6 +39,16 @@ Jika terpaksa menempatkan project root sebagai document root Apache, gunakan `.h
 - Pilih hingga empat fasilitas untuk dibandingkan. Kesimpulan personel dan pelatihan berlabel **Belum tersedia** jika belum ada catatan pendukung. Simpan filter dan layer sebagai tampilan pribadi.
 - Gunakan **Kejadian** untuk mencari dan memfokuskan fasilitas terkait. Status baca melekat pada akun. Pengakuan dan penyelesaian dicatat sebagai tahap operasional terpisah.
 - Atur kategori, bisu, dan jam tenang melalui preferensi. Aktifkan notifikasi browser secara eksplisit saat halaman digunakan. Pemberitahuan latar belakang setelah halaman ditutup memerlukan proyek Web Push tersendiri.
+
+## Mengaktifkan E-RM dan Rikkes
+
+1. Terapkan migrasi 003. Hak klinis mulai kosong dan dikelola terpisah dari peran administratif.
+2. Buat akun petugas dan fasilitas. Dari direktori `binprof/`, jalankan `php tools/clinical-bootstrap.php EMAIL ID_FASILITAS` melalui CLI privat untuk menetapkan supervisor pertama di fasilitas tersebut. Alat ini juga dapat memulihkan fasilitas yang tidak memiliki supervisor aktif. Catat persetujuan organisasi sebelum menjalankannya.
+3. Supervisor membuka **E-RM dan Rikkes**, menetapkan kemampuan baca/tulis/ekspor pada petugas yang telah diverifikasi, lalu membuat penugasan perawatan. Pendaftaran berdasarkan NRP hanya mencari personel di fasilitas tersebut.
+4. Petugas memasukkan tujuan dan alasan akses sebelum mencari pasien, melihat timeline, atau membuat catatan. Kunjungan dan Rikkes mendukung draf, tanda tangan internal, amendemen, riwayat versi, dan lampiran privat.
+5. Untuk rekam lintas fasilitas, gunakan kode pasien dari rujukan resmi. Supervisor di fasilitas pemilik rekam menyetujui baca atau ekspor secara terpisah. Hak hanya berlaku untuk pasien, pemohon, fasilitas, dan tujuan yang disetujui selama 24 jam, kecuali dicabut lebih awal. Unduh ringkasan PDF hanya untuk tujuan yang sah.
+
+Jalankan verifikasi di staging sebelum data nyata dimasukkan. Pengiriman email pemulihan mandiri, integrasi rekam medis eksternal, dan Web Push masih memerlukan pekerjaan terpisah.
 
 ## Dokumen
 

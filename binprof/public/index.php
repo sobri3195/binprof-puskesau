@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../private/app/Core/bootstrap.php';
 require PROJECT . '/private/app/Views/ui.php';
+require PROJECT . '/private/app/Policies/clinical.php';
 
 headersForApp();
 $user = null;
@@ -73,6 +74,7 @@ try {
         }
         redirect('/login');
     }
+    $user['clinical_menu'] = clinicalSchemaReady() && clinicalWorkplaces($user) !== [];
     if ($route === '/logout' && $method === 'POST') {
         logout($user);
     }
@@ -82,6 +84,14 @@ try {
         fail(404, 'Halaman tidak ditemukan.');
     }
     [$permission, $controller, $function] = $handler;
+    if ($permission === '@clinical') {
+        if (!clinicalSchemaReady()) {
+            fail(503, 'Migrasi klinis belum diterapkan.');
+        }
+        require_once PROJECT . '/private/app/Controllers/Clinical.php';
+        clinicalDispatch($user, $function);
+        exit;
+    }
     if (!can($user, $permission)) {
         fail(403, 'Akses ditolak.');
     }

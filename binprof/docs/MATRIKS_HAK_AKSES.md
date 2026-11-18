@@ -34,3 +34,14 @@ Pemohon tidak dapat menyetujui permintaannya sendiri walaupun memiliki kewenanga
 ## Kanal WhatsApp
 
 Izin `whatsapp.link` memungkinkan akun aktif menautkan identitasnya sendiri. Setiap intent membutuhkan izin modul yang sama dengan website. Ringkasan personel memakai izin ikhtisar, ringkasan diklat memakai izin baca diklat, mutasi mengikuti peserta/peninjau, dan hitungan peta memakai scope satuan atau fasilitas. Tautan ke E-RM memerlukan penugasan klinis aktif dan selalu diperiksa ulang di portal. Pemberitahuan peta juga memerlukan opt-in aktif dan preferensi kategori.
+
+## Tab tambahan Detail Personel
+
+Setiap kategori menggunakan `personnel.<kategori>.read`, `write`, `verify`, `download`, serta `export`. Semua tindakan memerlukan akses Personel dan scope objek. Tautan lintas tab memeriksa izin kedua kategori. Sumber sertifikat Diklat memerlukan izin Diklat yang relevan.
+
+| Kategori | Super Admin | Admin Satuan | Operator | Viewer |
+| --- | --- | --- | --- | --- |
+| Sertifikat, Petikan, Ijazah, Dikmil, Dikum | Baca, tulis, verifikasi, unduh, ekspor | Izin yang sama dalam scope | Baca, tulis, dan unduh dalam scope | — |
+| Kasus | Penetapan per akun | Penetapan per akun dan scope | Penetapan per akun dan scope | — |
+
+Hak Kasus diberikan secara eksplisit lewat CLI privat. Tanpa izin baca, tab dan seluruh akses data Kasus disembunyikan. Hak penulisan kasus mencakup tahap penanganan sesuai workflow. Penutupan dan pembukaan kembali membutuhkan izin verifikasi tambahan. Riwayat dan unduhan menggunakan scope personel dan scope unit penanganan. [Panduan catatan personel](CATATAN_PERSONEL.md)

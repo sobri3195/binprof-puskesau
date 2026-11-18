@@ -173,3 +173,9 @@ body.atlas-locked { overflow: hidden; }
     .atlas-map, .atlas:fullscreen .atlas-map, .atlas.is-expanded .atlas-map { height: clamp(16rem,49vh,32rem); }
     .atlas-toolbar button { min-height: 2.55rem; }
 }
+
+.personnel-tabs a { flex-shrink: 0; }
+@media (max-width: 780px) {
+    .personnel-tabs { flex-wrap: nowrap; overflow-x: auto; padding: .25rem .2rem .55rem; }
+    .personnel-tabs a { white-space: nowrap; }
+}

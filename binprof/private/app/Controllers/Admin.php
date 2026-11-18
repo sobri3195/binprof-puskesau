@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once PROJECT . '/private/app/Services/admin.php';
 require_once PROJECT . '/private/app/Policies/clinical.php';
+require_once PROJECT . '/private/app/Services/PersonnelRecords/catalog.php';
 
 function masterIndex(array $user): void
 {
@@ -17,7 +18,11 @@ function masterIndex(array $user): void
     $current = min(pageNumber(), max(1, (int) ceil($total / $per)));
     $rows = qu("SELECT id,code,name,active FROM $kind ORDER BY name,id LIMIT ? OFFSET ?", [$per, ($current-1)*$per])->fetchAll();
     page('Master data', static function () use ($kind, $rows, $row, $id, $total, $current, $per): void {
-        echo '<section class="surface"><div class="section-heading"><h2>' . e(MASTERS[$kind]) . '</h2></div>';
+        echo '<section class="surface"><div class="section-heading"><h2>' . e(MASTERS[$kind]) . '</h2>';
+        if (profileSchemaReady()) {
+            linkButton(PROFILE_MASTER,'Kategori catatan personel');
+        }
+        echo '</div>';
         getStart('/app/master');
         selectField('kind', 'Kelompok', MASTERS, $kind);
         echo '<button>Tampilkan</button></form>';
@@ -228,6 +233,9 @@ function userSave(array $actor): never
                     suspendClinicalIdentity($actor['id'], $id);
                 }
                 if ($terminate) {
+                    if (profileSchemaReady()) {
+                        qu('DELETE FROM personnel_case_permissions WHERE user_id=?',[$id]);
+                    }
                     qu('UPDATE auth_sessions SET revoked_at=UTC_TIMESTAMP() WHERE user_id=? AND revoked_at IS NULL', [$id]);
                 }
                 qu('DELETE FROM user_unit_scopes WHERE user_id=?', [$id]);

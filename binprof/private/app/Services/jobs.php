@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once PROJECT . '/private/app/Services/admin.php';
+require_once PROJECT . '/private/app/Services/PersonnelRecords/catalog.php';
 
 function notify(int $user, string $key, string $message): void
 {
@@ -74,12 +75,24 @@ function scheduledWork(?int $actor = null): int
             FROM users u JOIN role_permissions rp ON rp.role_code=u.role_code AND rp.permission_code='personnel.read'
             CROSS JOIN personnel p WHERE $recipients AND p.promotion_date BETWEEN ? AND ?
             ON DUPLICATE KEY UPDATE event_key=VALUES(event_key)", [day(),day(90)]);
+        if (profileSchemaReady()) {
+            qu("INSERT INTO notifications (user_id,event_key,message)
+                SELECT u.id,CONCAT('profile-certificate:',c.id,':',c.expires_on),'Ada sertifikat personel yang mendekati tanggal akhir.'
+                FROM users u JOIN role_permissions rp ON rp.role_code=u.role_code AND rp.permission_code='personnel.certificates.read'
+                JOIN role_permissions base ON base.role_code=u.role_code AND base.permission_code='personnel.read'
+                CROSS JOIN personnel p JOIN personnel_certificates c ON c.personnel_id=p.id
+                WHERE $recipients AND c.archived_at IS NULL AND c.training_id IS NULL
+                AND c.expires_on BETWEEN ? AND TIMESTAMPADD(DAY,c.reminder_days,?)
+                ON DUPLICATE KEY UPDATE event_key=VALUES(event_key)",[day(),day()]);
+        }
+        $details = profileSchemaReady() ? ' LEFT JOIN personnel_certificates c ON c.training_id=t.id AND c.archived_at IS NULL' : '';
+        $window = profileSchemaReady() ? 'TIMESTAMPADD(DAY,CASE WHEN c.id IS NULL THEN 90 ELSE c.reminder_days END,?)' : '?';
         qu("INSERT INTO notifications (user_id,event_key,message)
-            SELECT u.id,CONCAT('certificate:',t.id,':',t.expires_on),'Ada sertifikat yang akan berakhir dalam 90 hari.'
+            SELECT u.id,CONCAT('certificate:',t.id,':',t.expires_on),'Ada sertifikat Diklat yang mendekati tanggal akhir.'
             FROM users u JOIN role_permissions rp ON rp.role_code=u.role_code AND rp.permission_code='training.read'
-            CROSS JOIN personnel p JOIN training_records t ON t.personnel_id=p.id
-            WHERE $recipients AND t.archived_at IS NULL AND t.expires_on BETWEEN ? AND ?
-            ON DUPLICATE KEY UPDATE event_key=VALUES(event_key)", [day(),day(90)]);
+            CROSS JOIN personnel p JOIN training_records t ON t.personnel_id=p.id$details
+            WHERE $recipients AND t.archived_at IS NULL AND t.expires_on BETWEEN ? AND $window
+            ON DUPLICATE KEY UPDATE event_key=VALUES(event_key)", [day(),profileSchemaReady() ? day() : day(90)]);
         qu('DELETE FROM login_attempts WHERE attempted_at<UTC_TIMESTAMP()-INTERVAL 1 DAY');
         qu('DELETE FROM auth_sessions WHERE last_seen_at<UTC_TIMESTAMP()-INTERVAL 7 DAY');
         return $transferred;

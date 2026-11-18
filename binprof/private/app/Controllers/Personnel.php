@@ -140,9 +140,18 @@ function personnelDetail(array $user): void
     $id = key32($_GET);
     $record = person($user, $id);
     $tabs = ['basic'=>'Info dasar','contact'=>'Kontak','history'=>'Riwayat kedinasan','awards'=>'Penghargaan','works'=>'Karya'];
-    $tab = choice($_GET, 'tab', array_keys($tabs), 'basic');
+    require_once PROJECT . '/private/app/Views/personnel_records.php';
+    $tab = choice($_GET, 'tab', [...array_keys($tabs),...array_keys(PROFILE_TABS)], 'basic');
+    $profileContent = isset(PROFILE_TABS[$tab]) ? profilePrepareTab($user,$record,$tab) : null;
+    if (profileSchemaReady()) {
+        foreach (PROFILE_TABS as $key=>$label) {
+            if (profileAllowed($user,$key,'read')) {
+                $tabs[$key] = $label;
+            }
+        }
+    }
     $writable = can($user, 'personnel.write');
-    page($record['name'], static function () use ($user, $record, $id, $tabs, $tab, $writable): void {
+    page($record['name'], static function () use ($user, $record, $id, $tabs, $tab, $writable, $profileContent): void {
         echo '<section class="surface"><div class="section-heading"><h2>Profil personel</h2><div class="actions">';
         linkButton(PERSONNEL, 'Kembali');
         if ($writable && !$record['archived_at']) {
@@ -151,13 +160,17 @@ function personnelDetail(array $user): void
                 linkButton('/app/mutasi', 'Ajukan mutasi', ['id' => $id]);
             }
         }
-        echo '</div></div><nav class="tabs" aria-label="Bagian profil">';
+        echo '</div></div><nav class="tabs personnel-tabs" aria-label="Bagian profil">';
         foreach ($tabs as $key => $label) {
             echo '<a ' . ($key === $tab ? 'aria-current="page" ' : '') . 'href="' . e(url(PERSONNEL . '/detail',
                 ['id' => $id, 'tab' => $key])) . '">' . e($label) . '</a>';
         }
         echo '</nav>';
-        if ($tab === 'basic') {
+        if ($profileContent) {
+            echo '<div data-profile-records><p class="subtle" role="status" hidden data-profile-busy>Memproses permintaan…</p>';
+            $profileContent();
+            echo '</div><script type="module" src="/assets/js/profile-records.js"></script>';
+        } elseif ($tab === 'basic') {
             $relations = ['rank_id'=>'ranks','corps_id'=>'corps','profession_id'=>'professions','unit_id'=>'units','facility_id'=>'facilities'];
             foreach ($relations as $key => $master) {
                 $record[$key] = optionsFor($master, activeOnly: false)[$record[$key]] ?? null;

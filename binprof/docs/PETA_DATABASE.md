@@ -1,6 +1,6 @@
 # Peta database
 
-Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, `004_whatsapp_cloud.sql`, dan `005_personnel_records.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
+Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, `004_whatsapp_cloud.sql`, `005_personnel_records.sql`, dan `006_personnel_retirements.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
 
 - `commands` mengelompokkan `units`. `facilities` terhubung ke satuan dan `facility_types`. Koordinat harus sepasang dan berada dalam rentang lintang/bujur yang berlaku.
 - `personnel` berelasi dengan satuan, fasilitas, pangkat, korps, profesi, spesialisasi, riwayat, penghargaan, dan karya. Foreign key gabungan memeriksa satuan fasilitas. NIK dan kontak menggunakan envelope AEAD. NIK memiliki indeks HMAC pencarian tepat.
@@ -40,3 +40,12 @@ Kategori kejadian memakai `operations` (Operasional), `data` (Pembaruan data), d
 - `personnel_decree_extracts` menyimpan petikan, referensi ke mutasi/riwayat jika ada, serta tautan ke dokumen pengganti. `personnel_education` membedakan `military` dan `general` dan merelasikan ijazah atau sertifikat milik personel yang sama.
 - `personnel_diplomas` menyimpan informasi ijazah. `personnel_record_attachments` mengaitkan `file_objects` ke satu induk bertipe yang memiliki FK. Penayangan ijazah melalui riwayat pendidikan menggunakan file sumber itu juga.
 - `personnel_record_history` menyimpan versi dan perubahan per kategori, waktu, aktor, dan request ID. Endpoint audit administratif umum tidak membaca riwayat Kasus.
+
+## Migrasi 006
+
+- `personnel.retired_on` menyimpan TMT yang sudah diterapkan. `notifications.cancelled_at` memisahkan pembatalan pengingat dari status baca.
+- `retirement_rules` menyimpan versi dan validitas aturan yang bersumber. `personnel_retirements` menyimpan pengajuan, status, TMT, dan snapshot kedinasan. Satu pengajuan aktif per personel.
+- `personnel_retirement_versions` menyimpan riwayat versi dan keputusan. `retirement_document_links` merekam hubungan dengan Petikan. File tetap dikelola pada modul Petikan.
+- `retirement_checklist_templates` menyediakan master. `personnel_retirement_checklists` menyimpan salinan persyaratan dan hasil pengurusan per pengajuan.
+- `personnel_account_links` menyimpan bukti identitas akun-personel terverifikasi. `retirement_assignments` menyimpan penugasan dengan satu cakupan dan tanggal kedaluwarsa.
+- `retirement_reminder_preferences` menyimpan opt-in dan periode per pengguna.

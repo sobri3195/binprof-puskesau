@@ -1,5 +1,17 @@
 <?php
 return [
+    'GET /app/pensiun' => ['retirement.read', 'Retirement', 'retirementList'],
+    'GET /app/pensiun/master' => ['retirement.manage', 'Retirement', 'retirementMaster'],
+    'POST /app/pensiun/master/rule' => ['retirement.manage', 'Retirement', 'retirementRuleSave'],
+    'POST /app/pensiun/master/verify' => ['retirement.manage', 'Retirement', 'retirementRuleVerify'],
+    'POST /app/pensiun/master/template' => ['retirement.manage', 'Retirement', 'retirementTemplateSave'],
+    'POST /app/pensiun/save' => ['retirement.write', 'Retirement', 'retirementSave'],
+    'POST /app/pensiun/decision' => ['retirement.read', 'Retirement', 'retirementDecision'],
+    'POST /app/pensiun/birth' => ['retirement.verify', 'Retirement', 'retirementBirth'],
+    'POST /app/pensiun/checklist' => ['retirement.write', 'Retirement', 'retirementChecklist'],
+    'POST /app/pensiun/process' => ['retirement.apply', 'Retirement', 'retirementApply'],
+    'POST /app/pensiun/account' => ['retirement.account', 'Retirement', 'retirementAccount'],
+    'POST /app/pensiun/preferences' => ['retirement.read', 'Retirement', 'retirementPreference'],
     'GET /app/whatsapp' => ['whatsapp.link', 'WhatsApp', 'whatsappSettings'],
     'POST /app/whatsapp/code' => ['whatsapp.link', 'WhatsApp', 'whatsappCode'],
     'POST /app/whatsapp/confirm' => ['whatsapp.link', 'WhatsApp', 'whatsappConfirm'],

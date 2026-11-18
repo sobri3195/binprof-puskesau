@@ -46,7 +46,8 @@ function dashboard(array $user): void
         $reminders['Sertifikat berakhir'] = qu("SELECT COUNT(*) FROM personnel p JOIN training_records t ON t.personnel_id=p.id
             WHERE $population AND t.archived_at IS NULL AND t.expires_on BETWEEN ? AND ?", [...$args,day(),day(90)])->fetchColumn();
     }
-    page('Ikhtisar', static function () use ($counts, $ranks, $units, $facilities, $reminders): void {
+    $retirement = retirementMetricsAllowed($user) ? retirementMetrics($user,null,[],12)[0] : null;
+    page('Ikhtisar', static function () use ($user,$counts,$ranks,$units,$facilities,$reminders,$retirement): void {
         echo '<section class="hero"><div><h2>Tenaga kesehatan</h2><p>Ringkasan personel aktif dan fasilitas dalam cakupan Anda.</p></div>';
         linkButton('/app/peta', 'Lihat peta fasilitas');
         echo '</section><div class="stats">';
@@ -64,6 +65,16 @@ function dashboard(array $user): void
             echo '<section class="surface"><h2>Dalam 90 hari</h2>';
             foreach ($reminders as $label=>$value) {
                 echo '<p class="reminder"><span>' . e($label) . '</span><strong>' . e($value) . '</strong></p>';
+            }
+            echo '</section>';
+        }
+        if ($retirement !== null) {
+            echo '<section class="surface"><h2>Pensiun dalam 12 bulan</h2>';
+            foreach (['planned'=>'Perkiraan tercatat','scheduled'=>'Keputusan resmi menunggu penerapan','followup'=>'Perlu tindak lanjut'] as $key=>$label) {
+                echo '<p class="reminder"><span>' . e($label) . '</span><strong>' . e($retirement[$key] ?? 'Belum tersedia') . '</strong></p>';
+            }
+            if (can($user,'retirement.read')) {
+                linkButton(RETIREMENT,'Buka daftar pensiun',['group'=>'near','months'=>12]);
             }
             echo '</section>';
         }

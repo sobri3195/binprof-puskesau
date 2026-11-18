@@ -69,7 +69,7 @@ function requestTransfer(array $user): never
     tx(static function () use ($user, $personId, $target, $facility, $effective): void {
         $person = person($user, $personId, true);
         $from = (int) $person['unit_id'];
-        if ($person['archived_at'] || $from === $target) {
+        if ($person['archived_at'] || !empty($person['retired_on']) || $from === $target) {
             fail(422, 'Personel aktif dalam daftar dan satuan tujuan yang berbeda diperlukan.');
         }
         verifyUnitFacility($target, $facility);
@@ -121,7 +121,7 @@ function runScheduledWork(array $user): never
 
 function notificationIndex(array $user): void
 {
-    [$rows, $total, $current, $per] = limitedRows('FROM notifications', 'user_id=?', [$user['id']], '*', 'id DESC');
+    [$rows, $total, $current, $per] = limitedRows('FROM notifications', 'user_id=?' . notificationLiveSuffix(), [$user['id']], '*', 'id DESC');
     page('Notifikasi', static function () use ($rows, $total, $current, $per): void {
         echo '<section class="surface"><div class="section-heading"><h2>Pemberitahuan akun</h2>';
         postButton('/app/notifikasi/read', 'Tandai semua dibaca');
@@ -142,7 +142,7 @@ function notificationIndex(array $user): void
 function notificationRead(array $user): never
 {
     $id = number($_POST, 'id');
-    qu('UPDATE notifications SET read_at=UTC_TIMESTAMP() WHERE user_id=? AND read_at IS NULL' . ($id ? ' AND id=?' : ''),
+    qu('UPDATE notifications SET read_at=UTC_TIMESTAMP() WHERE user_id=? AND read_at IS NULL' . notificationLiveSuffix() . ($id ? ' AND id=?' : ''),
         $id ? [$user['id'],$id] : [$user['id']]);
     done('Status notifikasi diperbarui.', '/app/notifikasi');
 }

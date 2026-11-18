@@ -93,7 +93,7 @@ function waActor(array $link): ?array
     }
     $actor = qu('SELECT id,role_code,session_version FROM users WHERE id=? AND active=1 AND session_version=?',
         [(int) $link['user_id'], (int) $link['auth_version']])->fetch();
-    if (!$actor) {
+    if (!$actor || !retirementAccountEligible((int) $actor['id'],$actor['role_code'])) {
         return null;
     }
     $actor = withPermissions($actor);

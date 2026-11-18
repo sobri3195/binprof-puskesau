@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once PROJECT . '/private/app/Services/admin.php';
+require_once PROJECT . '/private/app/Services/Retirement/metrics.php';
 
 const MAP_CATEGORIES = ['operations'=>'Operasional','data'=>'Pembaruan data','training'=>'Diklat'];
 const MAP_SEVERITIES = ['info'=>'Info','warning'=>'Perhatian','critical'=>'Kritis'];
@@ -12,7 +13,7 @@ const MAP_FILTERS = [
 
 function mapFilters(array $input): array
 {
-    $filters = ['q'=>field($input,'q',100)];
+    $filters = ['q'=>field($input,'q',100),'retirement_months'=>retirementMapMonths($input)];
     foreach (array_keys(MAP_FILTERS) as $key) {
         $filters[$key] = number($input,$key);
     }
@@ -290,7 +291,11 @@ function mapChangeView(array $user): never
         jsonResponse(['deleted'=>true]);
     }
     $name = field($_POST,'name',80,true);
-    $view = ['filters'=>mapFilters($_POST),'theme'=>choice($_POST,'theme',['category','personnel','events'],'category')];
+    $themes = ['category','personnel','events'];
+    if (retirementMetricsAllowed($user)) {
+        $themes[] = 'retirement';
+    }
+    $view = ['filters'=>mapFilters($_POST),'theme'=>choice($_POST,'theme',$themes,'category')];
     $result = tx(static function () use ($user,$name,$view): array {
         qu('SELECT id FROM users WHERE id=? FOR UPDATE',[$user['id']]);
         $id = qu('SELECT id FROM map_saved_views WHERE user_id=? AND name=?',[$user['id'],$name])->fetchColumn();

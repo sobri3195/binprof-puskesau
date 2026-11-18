@@ -13,6 +13,9 @@ const filterKeys = [...q("[data-filters]").querySelectorAll("[name]")].map(node 
 const theme = q("[data-theme]");
 const detail = q("[data-detail]");
 const zone = root.dataset.zone;
+const retirementAllowed = root.dataset.retirement === "1";
+const retirementLabels = ["Perkiraan tercatat","Keputusan dijadwalkan","Proyeksi aktif setelah keputusan"];
+const retirementValues = row => [row?.planned,row?.scheduled,row?.remaining];
 const categories = JSON.parse(root.dataset.categories);
 const severity = JSON.parse(root.dataset.severity);
 const palette = ["#175d9a","#303b91","#087163","#88461a","#6e3d81","#9b354c","#3a667b","#376335"];
@@ -22,6 +25,7 @@ const coord = row => row.latitude === null || row.longitude === null ? null : [N
 const byId = row => String(row.id);
 const comparisons = new Map();
 let rows = JSON.parse(root.dataset.rows);
+let displayedFilters = readFilters();
 let result = new Map(rows.map(row => [byId(row),row]));
 let badges = new Map();
 let events = new Map();
@@ -52,7 +56,7 @@ function readFilters() {
 }
 
 function setFilters(filters) {
-    for (const key of filterKeys) filterForm.elements[key].value = filters[key] ?? "";
+    for (const key of filterKeys) filterForm.elements[key].value = filters[key] ?? (key === "retirement_months" ? "12" : "");
 }
 
 function updateLink(filters) {
@@ -80,6 +84,12 @@ function markerColor(row) {
         if (Number(row.total) >= 10) return "#18728b";
         return "#4e936d";
     }
+    if (theme.value === "retirement") {
+        const sum = row.retirement;
+        if (!sum || sum.active === null) return unknown;
+        if (sum.scheduled > 0) return "#9a432c";
+        return sum.planned > 0 ? "#266995" : "#567865";
+    }
     return ["#4c788c","#2e715e","#ad541d","#a42e49"][Number(badges.get(byId(row))?.severity || 0)];
 }
 
@@ -90,6 +100,9 @@ function renderLegend() {
         entries = [...new Set(rows.map(row => row.kind))].sort().map(kind => [kind,keyColor(kind)]);
     } else if (theme.value === "personnel") {
         entries = [["Belum tersedia",unknown],["Di bawah 10","#4e936d"],["10–49","#18728b"],["50 ke atas","#123c66"]];
+    } else if (theme.value === "retirement") {
+        entries = [["Data belum tersedia",unknown],["Tidak ada jadwal tercatat","#567865"],["Ada perkiraan","#266995"],["Ada keputusan resmi","#9a432c"]];
+        entries.unshift([(displayedFilters.retirement_months ?? "12") + " bulan","#19334a"]);
     } else {
         entries = [["Tanpa kejadian aktif","#4c788c"],["Info","#2e715e"],["Perhatian","#ad541d"],["Kritis","#a42e49"]];
     }
@@ -108,8 +121,20 @@ function iconFor(row) {
     const dot = element("i","","atlas-pin-core");
     dot.style.backgroundColor = markerColor(row);
     outer.append(dot);
+    if (theme.value === "retirement" && row.retirement?.active != null) {
+        const {planned,scheduled} = row.retirement;
+        const count = element("span",String(planned + scheduled),"atlas-pin-projection");
+        count.title = planned + " perkiraan tercatat · " + scheduled + " keputusan resmi";
+        outer.append(count);
+    }
     const unread = badges.get(byId(row))?.unread;
     if (Number(unread) > 0) outer.append(element("b",String(unread),"atlas-pin-count"));
+    if (row.retirement?.followup > 0) {
+        const count = element("b",String(row.retirement.followup),"atlas-pin-retirement");
+        count.title = "Administrasi pensiun perlu tindak lanjut";
+        count.setAttribute("aria-label",count.textContent + " administrasi pensiun perlu tindak lanjut");
+        outer.append(count);
+    }
     return window.L.divIcon({className:"atlas-pin",html:outer,iconSize:[26,26]});
 }
 
@@ -153,9 +178,11 @@ function fitAll() {
 function tableRows() {
     q("[data-result]").textContent = rows.length + " fasilitas · " + rows.filter(coord).length
         + " berkoordinat. Maksimal 1.000 hasil.";
-    q("[data-table]").replaceChildren(table(names, rows.map(row => [
+    const headers = retirementAllowed ? [...names,...retirementLabels] : names;
+    q("[data-table]").replaceChildren(table(headers, rows.map(row => [
         button(row.name,() => focusFacility(byId(row),false)),row.kind,row.unit,row.command_name,
-        row.total,row.doctors,row.dentists,row.nurses,coord(row)?.join(", ")
+        row.total,row.doctors,row.dentists,row.nurses,coord(row)?.join(", "),
+        ...(retirementAllowed ? retirementValues(row.retirement) : [])
     ])));
 }
 
@@ -165,6 +192,7 @@ async function applyFilters(filters, {announce = true} = {}) {
     try {
         const next = await api("markers",{query:filters});
         if (requestId !== filterSequence) return false;
+        displayedFilters = filters;
         rows = next;
         result = new Map(rows.map(row => [byId(row),row]));
         if (selected && !result.has(selected)) {
@@ -181,6 +209,7 @@ async function applyFilters(filters, {announce = true} = {}) {
         fitAll();
         nearResults();
         compare();
+        if (selected) openFacility(selected);
         updateLink(filters);
         if (announce) showStatus(rows.length ? "" : "Tidak ada fasilitas yang sesuai dengan filter.");
         return true;
@@ -197,7 +226,7 @@ async function openFacility(id, {reveal = false} = {}) {
     activeEventPanel = null;
     detail.replaceChildren(element("h3","Detail fasilitas"),element("p","Memuat detail…","subtle"));
     try {
-        const data = await api("detail",{query:{facility:id}});
+        const data = await api("detail",{query:{...displayedFilters,facility:id}});
         if (revision !== detailSequence) return;
         const facility = data.facility;
         const title = element("h3",facility.name);
@@ -210,6 +239,7 @@ async function openFacility(id, {reveal = false} = {}) {
         detail.append(element("h3","Pelatihan"));
         detail.append(data.training ? definitions([["Catatan diklat",data.training.total],["Sudah",data.training.completed],
             ["Belum",data.training.pending],["Akan berakhir ≤90 hari",data.training.expiring]]) : element("p","Belum tersedia","subtle"));
+        if (retirementAllowed) renderRetirementDetail(data);
         activeEventPanel = element("div");
         detail.append(activeEventPanel);
         renderDetailEvents(data.events);
@@ -241,6 +271,35 @@ async function openFacility(id, {reveal = false} = {}) {
     } catch (error) {
         if (revision === detailSequence) detail.append(element("p",error.message));
     }
+}
+
+function renderRetirementDetail(data) {
+    const row = data.retirement;
+    const panel = element("section","","atlas-retirement");
+    panel.append(element("h3","Pensiun/Purnawirawan"));
+    if (row) {
+        panel.append(definitions([
+            ["Periode",row.months + " bulan hingga " + row.through],
+            ["Personel aktif dalam filter",row.active],
+            ["Perkiraan tercatat",row.planned],
+            ["Keputusan resmi menunggu penerapan",row.scheduled],
+            ["Administrasi perlu tindak lanjut",row.followup],
+            ["Pembaruan data pensiun",timeText(row.updated_at,zone)],
+            ["Waktu penghitungan",timeText(row.as_of,zone)],
+        ]));
+        panel.append(element("h4","Proyeksi tenaga hingga 24 bulan"));
+        panel.append(table(["Periode","Sampai tanggal",...retirementLabels],
+            row.timeline.map(period => [period.months + " bulan",period.through,...retirementValues(period)])));
+        panel.append(element("p","Proyeksi aktif mengurangi jumlah aktif dengan keputusan resmi yang masih menunggu penerapan dalam periode. Selisih kebutuhan belum tersedia karena target terverifikasi belum tersedia.","subtle"));
+    } else {
+        panel.append(element("p","Data tenaga dalam filter ini belum tersedia.","subtle"));
+    }
+    if (data.retirement_url && row?.followup > 0) {
+        const link = element("a","Buka tindak lanjut pensiun","button secondary");
+        link.href = data.retirement_url;
+        panel.append(link);
+    }
+    detail.append(panel);
 }
 
 function renderDetailEvents(initial) {
@@ -328,9 +387,15 @@ function compare() {
     const panel = q("[data-compare]");
     panel.hidden = comparisons.size === 0;
     const body = q("[data-compare-body]");
-    body.replaceChildren(table(["Fasilitas","Kategori","Personel aktif tercatat","Catatan diklat","Kejadian aktif","Aksi"],
-        [...comparisons].map(([id,{facility,total,training}]) => [facility.name,facility.kind,total,training?.total,
-            badges.get(id)?.active ?? 0, button("Hapus",() => { comparisons.delete(id); compare(); })])));
+    const headers = ["Fasilitas","Kategori","Personel aktif tercatat","Catatan diklat","Kejadian aktif",
+        ...(retirementAllowed ? retirementLabels : []),"Aksi"];
+    body.replaceChildren(table(headers,
+        [...comparisons].map(([id,{facility,training}]) => {
+            const row = result.get(id);
+            return [facility.name,facility.kind,row?.total,training?.total,badges.get(id)?.active ?? 0,
+                ...(retirementAllowed ? retirementValues(row?.retirement) : []),
+                button("Hapus",() => { comparisons.delete(id); compare(); })];
+        })));
 }
 
 function nearResults() {
@@ -442,7 +507,7 @@ async function loadViews() {
         item.append(button(row.name,() => {
             const view = saved.get(row.id).view;
             setFilters(view.filters);
-            theme.value = view.theme;
+            theme.value = Array.from(theme.options).some(option => option.value === view.theme) ? view.theme : "category";
             applyFilters(readFilters());
         }),button("Hapus",async () => {
             try {
@@ -465,7 +530,7 @@ const notifications = enableEvents(root,api,{focus:id => focusFacility(id,true),
     refreshMarkerStyle();
     renderDetailEvents();
     compare();
-    if (refreshFacilities) applyFilters(readFilters(),{announce:false});
+    if (refreshFacilities) applyFilters(displayedFilters,{announce:false});
 }});
 tableRows();
 initMap().catch(() => showStatus("Peta 2D tidak dapat dimuat. Gunakan tabel fasilitas."));

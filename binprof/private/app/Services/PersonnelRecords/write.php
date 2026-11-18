@@ -7,6 +7,14 @@ function profileHistory(array $user,string $personnel,string $tab,string $id,int
 {
     qu('INSERT INTO personnel_record_history (personnel_id,record_kind,record_id,actor_id,row_version,action,request_id,change_summary)
         VALUES (?,?,?,?,?,?,?,?)',[$personnel,$tab,$id,$user['id'],$version,$action,REQUEST_ID,$change]);
+    if ($tab==='decrees' && retirementReady()) {
+        $retirement = qu("SELECT id FROM personnel_retirements WHERE personnel_id=? AND decree_id=?
+            AND state IN ('verified','approved')",[$personnel,$id])->fetchColumn();
+        if ($retirement !== false) {
+            retirementInvalidateNotifications($retirement);
+            retirementRefreshMap();
+        }
+    }
 }
 
 function profileRequireEditable(array $staff,array $row = []): void

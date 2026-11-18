@@ -239,7 +239,7 @@ function waPriority(array $actor, array $link, array $query): string
 
 function waNotices(array $actor, array $link, array $query): string
 {
-    $count = qu('SELECT COUNT(*) FROM notifications WHERE user_id=? AND read_at IS NULL',[$actor['id']])->fetchColumn();
+    $count = qu('SELECT COUNT(*) FROM notifications WHERE user_id=? AND read_at IS NULL' . notificationLiveSuffix(),[$actor['id']])->fetchColumn();
     return waMeasured("$count pemberitahuan akun belum dibaca. Detail tersedia di portal:\n"
         . waPortal('/app/notifikasi'),$actor,'status saat ini');
 }

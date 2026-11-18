@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once PROJECT . '/private/app/Services/Retirement/policy.php';
+
 function email(string $value): string
 {
     $value = strtolower(trim($value));
@@ -75,9 +77,10 @@ function attemptLogin(): never
     $handle = bin2hex(random_bytes(32));
     $id = (int) $row['id'];
     tx(static function () use ($row, $candidate, $handle, $id, $nameKey): void {
-        $current = qu('SELECT active,session_version,password_hash FROM users WHERE id=? FOR UPDATE', [$id])->fetch();
+        $current = qu('SELECT active,session_version,password_hash,role_code FROM users WHERE id=? FOR UPDATE', [$id])->fetch();
         if (!$current || !$current['active'] || (int) $current['session_version'] !== (int) $row['session_version']
-            || !hash_equals($current['password_hash'], $row['password_hash'])) {
+            || !hash_equals($current['password_hash'], $row['password_hash'])
+            || !retirementAccountEligible($id,$current['role_code'])) {
             fail(401, 'Email atau kata sandi tidak valid.');
         }
         if (password_needs_rehash($row['password_hash'], passwordAlgorithm())) {
@@ -104,7 +107,7 @@ function currentUser(): ?array
         AND s.session_version=u.session_version AND s.last_seen_at > TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP())
         AND s.created_at > TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP())',
         [$key, -(int) (cfg('idle_seconds') ?? 1800), -(int) (cfg('absolute_seconds') ?? 28800)])->fetch();
-    if (!$user) {
+    if (!$user || !retirementAccountEligible((int) $user['id'],$user['role_code'])) {
         unset($_SESSION['handle'], $_SESSION['csrf']);
         return null;
     }

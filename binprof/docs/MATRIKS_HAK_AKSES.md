@@ -45,3 +45,7 @@ Setiap kategori menggunakan `personnel.<kategori>.read`, `write`, `verify`, `dow
 | Kasus | Penetapan per akun | Penetapan per akun dan scope | Penetapan per akun dan scope | — |
 
 Hak Kasus diberikan secara eksplisit lewat CLI privat. Tanpa izin baca, tab dan seluruh akses data Kasus disembunyikan. Hak penulisan kasus mencakup tahap penanganan sesuai workflow. Penutupan dan pembukaan kembali membutuhkan izin verifikasi tambahan. Riwayat dan unduhan menggunakan scope personel dan scope unit penanganan. [Panduan catatan personel](CATATAN_PERSONEL.md)
+
+## Pensiun/Purnawirawan
+
+Agregat dashboard dan peta memakai `retirement.summary` dan scope organisasi. Operator, Unit Admin, serta Super Admin memiliki `retirement.read` dan `retirement.write`. `retirement.verify` tersedia bagi Unit Admin dan Super Admin. `retirement.approve`, `retirement.apply`, `retirement.manage`, dan `retirement.account` diberikan pada Super Admin. Dokumen SK tetap membutuhkan izin unduh Petikan. Ketentuan dokumen, pemisahan pejabat, dan penugasan terbatas dijelaskan di [panduan Pensiun](PENSIUN.md).

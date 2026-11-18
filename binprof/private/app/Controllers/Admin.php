@@ -216,6 +216,9 @@ function userSave(array $actor): never
                 if (!$before) {
                     fail(404, 'Pengguna tidak ditemukan.');
                 }
+                if ($active && retirementAccountHasRetired($id)) {
+                    fail(409,'Atur masa akses purnawirawan melalui tab Pensiun.');
+                }
                 if ((int) $before['session_version'] !== number($_POST, 'version')) {
                     fail(409, 'Akun sudah berubah. Muat ulang formulir.');
                 }

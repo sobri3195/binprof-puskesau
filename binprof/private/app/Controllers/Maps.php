@@ -12,8 +12,9 @@ function mapExplore(array $user): void
     $route = ($_GET['r'] ?? parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH)) === '/app/peta-sebaran'
         ? '/app/peta-sebaran' : MAP_PATH;
     $filters = mapFilters($_GET);
-    $rows = mapRows($user,$filters);
-    page($route === MAP_PATH ? 'Peta fasilitas' : 'Peta sebaran',static function () use ($route,$filters,$rows,$user): void {
+    $rows = retirementMapRows($user,mapRows($user,$filters),$filters);
+    $retirement = retirementMetricsAllowed($user);
+    page($route === MAP_PATH ? 'Peta fasilitas' : 'Peta sebaran',static function () use ($route,$filters,$rows,$user,$retirement): void {
         ?>
         <section class="surface atlas" data-atlas data-rows="<?= e(json_encode($rows,JSON_THROW_ON_ERROR)) ?>"
             data-routes="<?= e(json_encode(array_map('url',[
@@ -23,7 +24,7 @@ function mapExplore(array $user): void
             data-categories="<?= e(json_encode(MAP_CATEGORIES,JSON_THROW_ON_ERROR)) ?>"
             data-severity="<?= e(json_encode(MAP_SEVERITIES,JSON_THROW_ON_ERROR)) ?>"
             data-manage="<?= (int) can($user,'map.manage') ?>" data-respond="<?= (int) can($user,'map.respond') ?>"
-            data-zone="<?= e(cfg('timezone') ?? 'Asia/Jakarta') ?>">
+            data-retirement="<?= (int) $retirement ?>" data-zone="<?= e(cfg('timezone') ?? 'Asia/Jakarta') ?>">
             <div class="atlas-toolbar">
                 <div>
                     <h2>Eksplorasi fasilitas</h2>
@@ -47,6 +48,9 @@ function mapExplore(array $user): void
                     foreach (MAP_FILTERS as $key=>[$master,$label]) {
                         selectField($key,$label,optionsFor($master,$master === 'units' ? $user : null,false),$filters[$key],'Semua');
                     }
+                    if ($retirement) {
+                        selectField('retirement_months','Periode pensiun',RETIREMENT_MAP_PERIODS,$filters['retirement_months']);
+                    }
                     ?>
                 </div>
                 <div class="actions"><button>Terapkan</button><a class="button secondary" data-reset href="<?= e(url($route)) ?>">Reset</a>
@@ -61,6 +65,7 @@ function mapExplore(array $user): void
                     <div class="atlas-layers" data-enhanced hidden>
                         <label>Layer tematik<select data-theme>
                             <option value="category">Kategori</option><option value="personnel">Personel tercatat</option><option value="events">Kejadian aktif</option>
+                            <?php if ($retirement): ?><option value="retirement">Menjelang pensiun</option><?php endif; ?>
                         </select></label>
                         <div class="atlas-legend" data-legend aria-label="Legenda"></div>
                     </div>
@@ -171,7 +176,18 @@ function mapDetail(array $user): never
             WHERE p.facility_id=? AND p.active=1 AND p.archived_at IS NULL AND t.archived_at IS NULL',[day(),day(90),$id])->fetch();
         $events = array_filter(eventRows($user,mapRevision(),facility:$id),static fn (array $row): bool => $row['resolved_at'] === null);
         unset($facility['unit_id']);
-        return [
+        $retirement = [];
+        if (retirementMetricsAllowed($user)) {
+            $filters = mapFilters($_GET);
+            $retirement['retirement'] = retirementMetrics($user,[$id],$filters,$filters['retirement_months'],true)[$id] ?? null;
+            if (can($user,'retirement.read') && can($user,'personnel.read')) {
+                $retirement['retirement_url'] = url(RETIREMENT,[
+                    'facility'=>$id,'group'=>'followup','months'=>$filters['retirement_months'],
+                    'profession_id'=>$filters['profession_id'],'specialty_id'=>$filters['specialty_id'],
+                ]);
+            }
+        }
+        return $retirement + [
             'facility'=>$facility,'total'=>$professions ? array_sum(array_column($professions,'total')) : null,
             'professions'=>$professions ?: null,'training'=>(int) $training['total'] > 0 ? $training : null,
             'events'=>array_values($events),'personnel_allowed'=>can($user,'personnel.read'),
@@ -201,5 +217,6 @@ function mapPersonnel(array $user): never
 
 function mapMarkers(array $user): never
 {
-    jsonResponse(mapRows($user));
+    $filters = mapFilters($_GET);
+    jsonResponse(retirementMapRows($user,mapRows($user,$filters),$filters));
 }

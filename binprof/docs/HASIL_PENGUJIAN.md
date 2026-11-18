@@ -80,3 +80,19 @@ Migrasi 005 diuji pada PHP 8.4, MariaDB 10.11, dan Apache 2.4 dari baseline yang
 Untuk menjalankan ulang, gunakan database sintetis yang telah diisi oleh `tools/tests/smoke_admin.py` dan `tools/tests/map_fixtures.sql`, lalu terapkan migrasi sampai 005. Jalankan `python3 tools/tests/personnel_records.py` dari `binprof/`. Bila PHP ada di kontainer, gunakan `BINPROF_PROFILE_CLI` untuk menunjuk PHP dan `tools/personnel-case-access.php` di kontainer. Lanjutkan dengan `node tools/tests/personnel_records.mjs` memakai Playwright dan Chromium. Suite mengubah data serta izin pada database uji.
 
 Pemindai malware produksi belum tersedia di pengujian. Penerapan pada hosting BINPROFKES belum dilakukan.
+
+## Pensiun/Purnawirawan
+
+Migrasi 006 berhasil diimpor ke MariaDB 10.11 setelah skema 005 berisi fixture sintetis. Pengujian menggunakan PHP 8.4, Apache 2.4, Chromium dan Playwright pada server lokal.
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| Perkiraan dan aturan | Lulus. Versi aturan perlu pengelola kedua, kalkulasi memerlukan tanggal lahir terverifikasi, 29 Februari menyesuaikan akhir bulan, dan tanggal yang belum diketahui tetap kosong. |
+| Keputusan dan checklist | Lulus. Unggah Petikan tidak mengubah status dinas. Pemeriksaan dokumen wajib, TMT hari ini, keputusan masa depan, pengembalian, pembatalan beralasan, dan perubahan Petikan sebelum penerapan diuji. |
+| Cron dan riwayat | Lulus. Cron menandai keputusan yang terhalang, menerapkan yang memenuhi syarat tepat sekali, dan aman dipanggil ulang melalui cron maupun aksi manual. Kasus, Petikan, berkas, dan sertifikat lama tetap tersedia sesuai izin. |
+| Roster dan agregat | Lulus. Purnawirawan dipisahkan dari nonaktif biasa serta keluar dari roster aktif. Peta menurunkan hitungan aktif dan memisahkan estimasi, keputusan dan target yang belum tersedia. |
+| Dokumen, scope, dan akun | Lulus. Akses lintas satuan, unduh privat Viewer dan upaya aktivasi akun lewat menu pengguna ditolak. Sesi lama dicabut. Penugasan Viewer terbatas dapat diberikan dan dicabut. |
+| Notifikasi portal | Lulus. Dua putaran cron menghasilkan satu pengingat. Penyimpanan tanpa perubahan jadwal tetap deduplikasi dan perpindahan di luar periode membatalkan pengingat. |
+| Chromium desktop dan mobile | Lulus. Layer dan periode pensiun, timeline, tabel perbandingan, batas agregat Viewer, serta roster/profil pada lebar 360 px diperiksa. Regresi fullscreen native dan mode perluas, 3D, serta kejadian peta lulus. |
+
+Jalankan suite pada database lokal sekali pakai. Setelah menyiapkan fixture administratif, fixture peta, dan migrasi sampai 006, jalankan `python3 tools/tests/personnel_records.py` lalu `python3 tools/tests/retirement.py` dari folder `binprof/`. Setel `BINPROF_PROFILE_CLI` dan `BINPROF_RETIREMENT_CLI` apabila PHP berjalan di kontainer. Jalankan `BINPROF_RETIREMENT_FIXTURE=1 node tools/tests/maps.mjs` setelah suite tersebut. Cron cPanel dan migrasi produksi belum dijalankan.

@@ -11,10 +11,12 @@ function personnelQuery(array $user): array
     [$scope, $params] = scope($user, 'p.unit_id', 'p.facility_id');
     $from = 'FROM personnel p JOIN units u ON u.id=p.unit_id JOIN professions pr ON pr.id=p.profession_id
         LEFT JOIN ranks r ON p.rank_id=r.id';
-    $state = choice($_GET, 'state', ['active','inactive','archived','all'], 'all');
+    $hasRetirement = retirementReady();
+    $state = choice($_GET, 'state', $hasRetirement ? ['active','inactive','archived','all','retired'] : ['active','inactive','archived','all'], 'all');
     $where = [$scope, match ($state) {
         'active' => 'p.archived_at IS NULL AND p.active=1',
-        'inactive' => 'p.archived_at IS NULL AND p.active=0',
+        'inactive' => 'p.archived_at IS NULL AND p.active=0' . ($hasRetirement ? ' AND p.retired_on IS NULL' : ''),
+        'retired' => 'p.archived_at IS NULL AND p.retired_on IS NOT NULL',
         'archived' => 'p.archived_at IS NOT NULL',
         default => 'p.archived_at IS NULL',
     }];
@@ -66,7 +68,8 @@ function personnelQuery(array $user): array
 function personnelIndex(array $user): void
 {
     [$from, $where, $params, $order] = personnelQuery($user);
-    $fields = 'p.id,p.name,p.nrp,u.name AS unit,pr.name AS profession,r.name AS rank_name,p.active,p.archived_at,p.promotion_date';
+    $fields = 'p.id,p.name,p.nrp,u.name AS unit,pr.name AS profession,r.name AS rank_name,p.active,p.archived_at,p.promotion_date'
+        . (retirementReady() ? ',p.retired_on' : ',NULL AS retired_on');
     $labels = ['Nama','NRP','Pangkat','Satuan','Profesi','Status','Rencana kenaikan'];
     if (isset($_GET['format'])) {
         if (!can($user, 'personnel.export')) {
@@ -98,7 +101,8 @@ function personnelIndex(array $user): void
         selectField('profession_id', 'Profesi', optionsFor('professions', activeOnly: false), $_GET['profession_id'] ?? '', 'Semua');
         selectField('rank_group', 'Kelompok pangkat', array_combine($groups, $groups), $_GET['rank_group'] ?? '', 'Semua');
         selectField('specialty_id', 'Spesialisasi', optionsFor('specialties', activeOnly: false), $_GET['specialty_id'] ?? '', 'Semua');
-        selectField('state', 'Status dinas', ['all'=>'Semua nonarsip','active'=>'Aktif','inactive'=>'Nonaktif','archived'=>'Arsip'], $_GET['state'] ?? 'all');
+        selectField('state', 'Status dinas', ['all'=>'Semua nonarsip','active'=>'Aktif','inactive'=>'Nonaktif','archived'=>'Arsip']
+            + (retirementReady() ? ['retired'=>'Purnawirawan'] : []), $_GET['state'] ?? 'all');
         selectField('bp', 'Status BP', BP, $_GET['bp'] ?? '', 'Semua');
         selectField('promotion', 'Rencana kenaikan', ['0'=>'Semua','1'=>'Dalam 90 hari'], $_GET['promotion'] ?? '0');
         selectField('transfer', 'Riwayat mutasi', ['0'=>'Semua','1'=>'Belum pindah satuan'], $_GET['transfer'] ?? '0');
@@ -121,7 +125,7 @@ function personnelIndex(array $user): void
 function personnelCells(array $row): array
 {
     return [$row['name'], $row['nrp'], $row['rank_name'], $row['unit'], $row['profession'],
-        $row['archived_at'] ? 'Arsip' : ($row['active'] ? 'Aktif' : 'Nonaktif'), $row['promotion_date']];
+        $row['archived_at'] ? 'Arsip' : (!empty($row['retired_on']) ? 'Purnawirawan' : ($row['active'] ? 'Aktif' : 'Nonaktif')), $row['promotion_date']];
 }
 
 function person(array $user, string $id, bool $lock = false): array
@@ -141,8 +145,12 @@ function personnelDetail(array $user): void
     $record = person($user, $id);
     $tabs = ['basic'=>'Info dasar','contact'=>'Kontak','history'=>'Riwayat kedinasan','awards'=>'Penghargaan','works'=>'Karya'];
     require_once PROJECT . '/private/app/Views/personnel_records.php';
-    $tab = choice($_GET, 'tab', [...array_keys($tabs),...array_keys(PROFILE_TABS)], 'basic');
+    $tab = choice($_GET, 'tab', [...array_keys($tabs),...array_keys(PROFILE_TABS),RETIREMENT_TAB], 'basic');
     $profileContent = isset(PROFILE_TABS[$tab]) ? profilePrepareTab($user,$record,$tab) : null;
+    if ($tab === RETIREMENT_TAB) {
+        require_once PROJECT . '/private/app/Views/retirement.php';
+        $profileContent = retirementPrepareProfile($user,$record);
+    }
     if (profileSchemaReady()) {
         foreach (PROFILE_TABS as $key=>$label) {
             if (profileAllowed($user,$key,'read')) {
@@ -150,13 +158,16 @@ function personnelDetail(array $user): void
             }
         }
     }
+    if (retirementReady() && can($user,'retirement.read')) {
+        $tabs[RETIREMENT_TAB] = 'Pensiun/Purnawirawan';
+    }
     $writable = can($user, 'personnel.write');
     page($record['name'], static function () use ($user, $record, $id, $tabs, $tab, $writable, $profileContent): void {
         echo '<section class="surface"><div class="section-heading"><h2>Profil personel</h2><div class="actions">';
         linkButton(PERSONNEL, 'Kembali');
         if ($writable && !$record['archived_at']) {
             linkButton(PERSONNEL . '/edit', 'Ubah profil', ['id' => $id], 'primary');
-            if (can($user, 'transfers.request')) {
+            if (can($user, 'transfers.request') && empty($record['retired_on'])) {
                 linkButton('/app/mutasi', 'Ajukan mutasi', ['id' => $id]);
             }
         }
@@ -181,7 +192,7 @@ function personnelDetail(array $user): void
                 'Satuan'=>$record['unit_id'], 'Fasilitas'=>$record['facility_id'], 'Profesi'=>$record['profession_id'],
                 'Spesialisasi'=>implode(', ', $specialties), 'Jabatan'=>$record['position_title'],
                 'Pekerjaan'=>$record['occupation'], 'Kenaikan'=>$record['promotion_date'], 'Status BP'=>BP[$record['bp_status']],
-                'Status'=>$record['archived_at'] ? 'Arsip' : ($record['active'] ? 'Aktif' : 'Nonaktif')]);
+                'Status'=>$record['archived_at'] ? 'Arsip' : (!empty($record['retired_on']) ? 'Purnawirawan' : ($record['active'] ? 'Aktif' : 'Nonaktif'))]);
             if ($writable) {
                 $action = $record['archived_at'] ? 'restore' : 'archive';
                 echo '<details><summary>' . ($record['archived_at'] ? 'Pulihkan personel' : 'Arsipkan personel') . '</summary>';
@@ -232,7 +243,7 @@ function personnelForm(array $user): void
         selectField('corps_id', 'Korps', optionsFor('corps'), $row['corps_id'] ?? '', 'Belum dicatat');
         input('position_title', 'Jabatan', $row['position_title'] ?? '');
         input('occupation', 'Pekerjaan', $row['occupation'] ?? '');
-        selectField('active', 'Status dinas', [1=>'Aktif',0=>'Nonaktif'], $row['active'] ?? 1);
+        selectField('active', 'Status dinas', !empty($row['retired_on']) ? [0=>'Purnawirawan'] : [1=>'Aktif',0=>'Nonaktif'], $row['active'] ?? 1);
         selectField('bp', 'Status BP', BP, $row['bp_status'] ?? 'unknown');
         input('promotion_date', 'Rencana kenaikan pangkat', $row['promotion_date'] ?? '', 'date');
         input('contact', 'Kontak', isset($row['contact_ciphertext']) ? unseal($row['contact_ciphertext'], "$id:contact") : '', 'tel', max: 80);
@@ -279,11 +290,15 @@ function personnelSave(array $user): never
             if ($prior && ($prior['archived_at'] || (int) $prior['row_version'] !== number($_POST, 'version'))) {
                 fail(409, 'Profil telah berubah. Buka ulang formulir.');
             }
+            $active = (int) choice($_POST,'active',['0','1']);
+            if (!empty($prior['retired_on']) && $active) {
+                fail(409,'Status Purnawirawan tidak dapat diaktifkan sebagai personel dinas.');
+            }
             $values = [$name, $nrp, $unit, $facility,
                 verifyMaster('ranks', number($_POST, 'rank_id'), false),
                 verifyMaster('corps', number($_POST, 'corps_id'), false),
                 verifyMaster('professions', number($_POST, 'profession_id')),
-                $position, field($_POST, 'occupation'), (int) choice($_POST, 'active', ['0','1']),
+                $position, field($_POST, 'occupation'), $active,
                 choice($_POST, 'bp', array_keys(BP)), calendar($_POST, 'promotion_date'),
                 $contact === '' ? null : seal($contact, "$id:contact"), $nik === '' ? null : seal($nik, "$id:nik"),
                 $nik === '' ? null : hash_hmac('sha256', $nik, secretBytes(cfg('lookup_pepper')), true)];

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 const NAVIGATION = [
     '/app/dashboard' => ['Ikhtisar', 'dashboard', '▦'],
+    '/app/pensiun' => ['Pensiun', 'retirement.read', '◷'],
     '/app/personel' => ['Personel', 'personnel.read', '◎'],
     '/app/pelatihan' => ['Diklat', 'training.read', '◇'],
     '/app/peta' => ['Peta fasilitas', 'map', '◉'],

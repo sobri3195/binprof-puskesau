@@ -13,8 +13,9 @@ function notify(int $user, string $key, string $message): void
 function applyTransfer(string $id, ?int $actor = null): bool
 {
     return tx(static function () use ($id, $actor): bool {
-        $person = qu('SELECT p.unit_id,p.archived_at,p.position_title,p.id FROM personnel p
-            WHERE p.id=(SELECT personnel_id FROM unit_transfers WHERE id=?) FOR UPDATE', [$id])->fetch();
+        $retired = retirementReady() ? ',p.retired_on' : ',NULL AS retired_on';
+        $person = qu("SELECT p.unit_id,p.archived_at,p.position_title,p.id$retired FROM personnel p
+            WHERE p.id=(SELECT personnel_id FROM unit_transfers WHERE id=?) FOR UPDATE", [$id])->fetch();
         if (!$person) {
             return false;
         }
@@ -25,7 +26,7 @@ function applyTransfer(string $id, ?int $actor = null): bool
         $from = (int) $transfer['from_unit_id'];
         $to = (int) $transfer['to_unit_id'];
         $facility = $transfer['to_facility_id'] === null ? null : (int) $transfer['to_facility_id'];
-        $valid = !$person['archived_at'] && (int) $person['unit_id'] === $from;
+        $valid = !$person['archived_at'] && empty($person['retired_on']) && (int) $person['unit_id'] === $from;
         if ($valid) {
             try {
                 verifyUnitFacility($to, $facility);

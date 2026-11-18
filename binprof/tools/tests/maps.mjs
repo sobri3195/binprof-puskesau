@@ -141,6 +141,43 @@ try {
     await mobile.locator("[data-view=globe]").click();
     await mobile.locator("[data-status]").getByText("WebGL2 tidak tersedia.",{exact:false}).waitFor();
 
+    if (await mobile.locator("[data-atlas]").getAttribute("data-retirement") === "1") {
+        await mobile.locator("[data-theme]").selectOption("retirement");
+        await mobile.locator("[data-filters] select[name=retirement_months]").selectOption("3");
+        await mobile.getByRole("button",{name:"Terapkan",exact:true}).click();
+        await mobile.waitForURL(url => url.searchParams.get("retirement_months") === "3");
+        await mobile.locator("[data-legend]").getByText("3 bulan",{exact:true}).waitFor();
+        await mobile.locator("[data-table]").getByRole("button",{name:"DATA DEMO Fasilitas 0",exact:true}).click();
+        const retirement = mobile.locator(".atlas-retirement");
+        await retirement.getByRole("heading",{name:"Proyeksi tenaga hingga 24 bulan"}).waitFor();
+        assert.equal(await retirement.locator("tbody tr").count(),4);
+        assert.match(await retirement.textContent(),/target terverifikasi belum tersedia/);
+        assert.equal(await retirement.getByRole("link",{name:"Buka tindak lanjut pensiun"}).count(),0);
+        assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
+        await mobile.locator("[data-detail]").getByRole("button",{name:"Bandingkan",exact:true}).click();
+        await mobile.locator("[data-compare]").getByRole("columnheader",{name:"Keputusan dijadwalkan"}).waitFor();
+        await mobile.locator("[data-reset]").click();
+        await mobile.waitForURL(url => url.searchParams.get("retirement_months") === "12");
+        assert.equal(await mobile.locator("[data-theme]").inputValue(),"category");
+
+        await scoped.goto(base + "/app/pensiun");
+        await scoped.getByRole("heading",{name:"Daftar pensiun"}).waitFor();
+        assert.ok(await scoped.locator('select[name=months]').locator('option[value="24"]').count());
+        if (process.env.BINPROF_RETIREMENT_FIXTURE === "1") {
+            await scoped.setViewportSize({width:360,height:780});
+            await scoped.locator('input[name=q]').fill("RET-DEMO-HARIINI");
+            await scoped.locator('select[name=group]').selectOption("effective");
+            await scoped.getByRole("button",{name:"Terapkan",exact:true}).click();
+            await scoped.getByRole("link",{name:"Buka",exact:true}).click();
+            await scoped.getByRole("heading",{name:"Pensiun/Purnawirawan",exact:true}).waitFor();
+            await scoped.getByText("Purnawirawan",{exact:true}).waitFor();
+            assert.equal(await scoped.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
+            await scoped.setViewportSize({width:1050,height:800});
+        }
+        await scoped.goto(base + "/app/peta-sebaran");
+        console.log("Pensiun Chromium: layer, periode, timeline, perbandingan, scope agregat dan roster mobile lulus.");
+    }
+
     const baseline = await json(mobile,"/api/maps/events");
     const create = {action:"create",facility:1,category:"operations",severity:"warning"};
     await json(admin,"/api/maps/events",403,create,false);

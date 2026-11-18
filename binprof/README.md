@@ -52,6 +52,8 @@ Jalankan verifikasi di staging sebelum data nyata dimasukkan. Pengiriman email p
 
 ## Dokumen
 
+- [Draf rancangan pengembangan, roadmap, dan backlog](docs/rancangan/SPESIFIKASI.md)
+
 - [WhatsApp Cloud API, template, dan cron](docs/WHATSAPP.md)
 
 - [Hasil pengujian](docs/HASIL_PENGUJIAN.md)

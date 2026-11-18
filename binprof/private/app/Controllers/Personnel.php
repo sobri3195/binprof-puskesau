@@ -47,6 +47,15 @@ function personnelQuery(array $user): array
     if (choice($_GET, 'transfer', ['0','1'], '0') === '1') {
         $where[] = "NOT EXISTS (SELECT 1 FROM unit_transfers t WHERE t.personnel_id=p.id AND t.status='applied')";
     }
+    if (($training = number($_GET, 'missing_training')) !== null) {
+        if (!can($user,'training.read')) {
+            fail(403,'Akses diklat diperlukan.');
+        }
+        $where[] = 'p.active=1 AND p.archived_at IS NULL AND NOT EXISTS (
+            SELECT 1 FROM training_records t WHERE t.personnel_id=p.id AND t.type_id=?
+            AND t.completed=1 AND t.archived_at IS NULL)';
+        $params[] = $training;
+    }
     $order = match (choice($_GET, 'sort', ['name','unit','promotion'], 'name')) {
         'unit' => 'u.name,p.name,p.id', 'promotion' => 'p.promotion_date IS NULL,p.promotion_date,p.name,p.id',
         default => 'p.name,p.id',
@@ -81,6 +90,9 @@ function personnelIndex(array $user): void
         }
         echo '</div></div>';
         getStart(PERSONNEL);
+        if (isset($_GET['missing_training'])) {
+            echo '<input type="hidden" name="missing_training" value="' . e($_GET['missing_training']) . '">';
+        }
         input('q', 'Nama atau NRP', $_GET['q'] ?? '', max: 100);
         selectField('unit_id', 'Satuan', optionsFor('units', $user, false), $_GET['unit_id'] ?? '', 'Semua');
         selectField('profession_id', 'Profesi', optionsFor('professions', activeOnly: false), $_GET['profession_id'] ?? '', 'Semua');

@@ -109,6 +109,11 @@ function currentUser(): ?array
         return null;
     }
     qu('UPDATE auth_sessions SET last_seen_at=UTC_TIMESTAMP() WHERE handle_hash=?', [$key]);
+    return withPermissions($user);
+}
+
+function withPermissions(array $user): array
+{
     $user['id'] = (int) $user['id'];
     $user['permissions'] = qu('SELECT permission_code FROM role_permissions WHERE role_code=?',
         [$user['role_code']])->fetchAll(PDO::FETCH_COLUMN);

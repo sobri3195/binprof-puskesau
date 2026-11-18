@@ -2,13 +2,13 @@
 
 Sistem Informasi Bina Profesional Kesehatan TNI AU. Aplikasi PHP native dalam folder `binprof/`, dengan data MySQL/MariaDB dan aset lokal.
 
-BINPROFKES mencakup autentikasi, ikhtisar, personel, diklat, mutasi, master, log, eksplorasi fasilitas dengan Leaflet/Three.js, dan modul E-RM/Rikkes. Gunakan data sintetis untuk peninjauan. Alur di balik login situs referensi direkonstruksi dari spesifikasi.
+BINPROFKES mencakup autentikasi, ikhtisar, personel, diklat, mutasi, master, log, eksplorasi fasilitas dengan Leaflet/Three.js, modul E-RM/Rikkes, serta chatbot WhatsApp yang dapat diaktifkan terpisah. Gunakan data sintetis untuk peninjauan. Alur di balik login situs referensi direkonstruksi dari spesifikasi.
 
 ## Instalasi di cPanel
 
 1. Gunakan PHP 8.4 atau 8.5 dengan patch terbaru dari penyedia. Aktifkan `pdo_mysql`, `mbstring`, `sodium`, `fileinfo`, `iconv`, dan `zlib`. Tetapkan `upload_max_filesize=10M` dan `post_max_size=12M` atau lebih untuk lampiran sertifikat.
 2. Unggah folder `binprof`. Tetapkan document root subdomain ke `/home/AKUN/binprof/public`. Ganti `AKUN` sesuai akun hosting. Aktifkan HTTPS di subdomain.
-3. Buat database kosong dan akun migrasi melalui cPanel. Di phpMyAdmin, pilih database tersebut dan impor `private/database/binprofkes.sql`, lalu migrasi `002_interactive_maps.sql` dan `003_clinical_records.sql` dari `private/database/migrations/`. Untuk instalasi yang sudah memakai skema peta, buat backup lalu jalankan hanya migrasi yang belum tercatat. Skema situs lama memerlukan pemetaan dan migrasi data tersendiri.
+3. Buat database kosong dan akun migrasi melalui cPanel. Di phpMyAdmin, pilih database tersebut dan impor `private/database/binprofkes.sql`, lalu migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, dan `004_whatsapp_cloud.sql` dari `private/database/migrations/`. Untuk instalasi yang sudah memakai skema peta, buat backup lalu jalankan hanya migrasi yang belum tercatat. Skema situs lama memerlukan pemetaan dan migrasi data tersendiri.
 4. Salin `private/config/config.example.php` menjadi `private/config/config.local.php`. Tetapkan DSN, akun runtime, origin lengkap, zona waktu, dan kunci. Buat tiga nilai berbeda untuk kunci AEAD dan dua pepper. Jalankan perintah berikut satu kali per nilai dari terminal privat. Simpan bersama konfigurasi privat dan backup terenkripsi.
    ```sh
    php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
@@ -51,6 +51,8 @@ Jika terpaksa menempatkan project root sebagai document root Apache, gunakan `.h
 Jalankan verifikasi di staging sebelum data nyata dimasukkan. Pengiriman email pemulihan mandiri, integrasi rekam medis eksternal, dan Web Push masih memerlukan pekerjaan terpisah.
 
 ## Dokumen
+
+- [WhatsApp Cloud API, template, dan cron](docs/WHATSAPP.md)
 
 - [Hasil pengujian](docs/HASIL_PENGUJIAN.md)
 - [Matriks hak akses](docs/MATRIKS_HAK_AKSES.md)

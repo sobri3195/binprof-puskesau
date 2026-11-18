@@ -28,6 +28,10 @@ try {
         }
         jsonResponse(['status' => 'ready']);
     }
+    if ($route === '/webhooks/whatsapp') {
+        require_once PROJECT . '/private/app/Services/WhatsApp/webhook.php';
+        whatsappWebhook($method);
+    }
     sessionBegin();
     if ($method === 'POST') {
         checkCsrf();
@@ -104,7 +108,7 @@ try {
     }
     $message = $error instanceof HttpError ? $error->getMessage() : 'Permintaan tidak dapat diproses.';
     http_response_code($status);
-    if (str_starts_with($route, '/api/')) {
+    if (str_starts_with($route, '/api/') || $route === '/webhooks/whatsapp') {
         jsonResponse(['error' => $message, 'request_id' => REQUEST_ID]);
     }
     page('Permintaan bermasalah', static function () use ($message, $status, $user): void {

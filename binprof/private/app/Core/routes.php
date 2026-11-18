@@ -1,5 +1,10 @@
 <?php
 return [
+    'GET /app/whatsapp' => ['whatsapp.link', 'WhatsApp', 'whatsappSettings'],
+    'POST /app/whatsapp/code' => ['whatsapp.link', 'WhatsApp', 'whatsappCode'],
+    'POST /app/whatsapp/confirm' => ['whatsapp.link', 'WhatsApp', 'whatsappConfirm'],
+    'POST /app/whatsapp/unlink' => ['whatsapp.link', 'WhatsApp', 'whatsappUnlink'],
+    'POST /app/whatsapp/preferences' => ['whatsapp.link', 'WhatsApp', 'whatsappPreferences'],
     'GET /app/erm' => ['@clinical', 'Clinical', 'home'],
     'GET /app/erm/audit' => ['@clinical', 'Clinical', 'audit'],
     'POST /app/erm/search' => ['@clinical', 'Clinical', 'search'],

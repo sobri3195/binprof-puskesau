@@ -50,6 +50,16 @@ function sendExport(string $format, string $title, array $columns, array $rows):
             $pdf->MultiCell(0, 5, iconv('UTF-8', 'Windows-1252//TRANSLIT//IGNORE', $line) ?: '');
         }
     }
-    $pdf->Output('D', $slug . '.pdf');
+    sendPdfAttachment($pdf, $slug . '.pdf');
+}
+
+function sendPdfAttachment(FPDF $pdf, string $filename): never
+{
+    $bytes = $pdf->Output('S');
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: no-store, private');
+    header('Content-Length: ' . strlen($bytes));
+    echo $bytes;
     exit;
 }

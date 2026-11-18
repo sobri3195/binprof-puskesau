@@ -1,6 +1,6 @@
 # Peta database
 
-Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
+Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql` dan `003_clinical_records.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
 
 - `commands` mengelompokkan `units`. `facilities` terhubung ke satuan dan `facility_types`. Koordinat harus sepasang dan berada dalam rentang lintang/bujur yang berlaku.
 - `personnel` berelasi dengan satuan, fasilitas, pangkat, korps, profesi, spesialisasi, riwayat, penghargaan, dan karya. Foreign key gabungan memeriksa satuan fasilitas. NIK dan kontak menggunakan envelope AEAD. NIK memiliki indeks HMAC pencarian tepat.
@@ -14,3 +14,13 @@ Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_m
 - Tanggal kalender memakai `DATE`. Stempel waktu tersimpan dalam UTC dan ditampilkan sesuai konfigurasi. Interval tenang mengikuti zona waktu aplikasi.
 
 Kategori kejadian memakai `operations` (Operasional), `data` (Pembaruan data), dan `training` (Diklat). Severity memakai `info`, `warning`, atau `critical`. Penghitungan hanya memakai catatan personel aktif dan nonarsip. Ketiadaan data personel/diklat dilaporkan sebagai `null`.
+
+
+## Migrasi 003
+
+- `user_clinical_privileges` mengikat akun dan fasilitas ke kemampuan `can_read`, `can_write`, `can_export`, dan `can_approve`. Supervisor mengesahkan kewenangan akun lain. `patient_care_assignments` mengikat penugasan dan masa aktif pada pasien tertentu.
+- `clinical_patients` menyimpan identitas klinis stabil yang ditautkan ke `personnel`. Mutasi mengubah satuan/fasilitas personel dan mempertahankan histori kunjungan.
+- `clinical_access_requests` dan `clinical_access_grants` merekam sumber, tempat pemohon bertugas, tujuan, lingkup, pemohon/peninjau, waktu keputusan, kedaluwarsa, dan pencabutan. Justifikasi dienkripsi.
+- `clinical_encounters` menyimpan fasilitas, jenis, tanggal, dan nomor versi terkini. `clinical_record_versions` menyimpan payload terenkripsi dan status `draft`, `signed`, atau `amended`. Perubahan memperoleh nomor versi baru dan menyimpan penulis serta waktu.
+- `clinical_documents` mengikat versi klinis ke metadata `file_objects` dan berkas terenkripsi di direktori privat. Penandatanganan dan amendemen mempertahankan tautan lampiran. Unduhan memerlukan otorisasi pembacaan ulang.
+- `clinical_access_logs` mencatat aktor, fasilitas yang diizinkan, pasien bila sah, aksi, alasan terbungkus, hasil, dan ID permintaan. Layar supervisor menampilkan metadata tanpa membuka uraian klinis.

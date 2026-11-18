@@ -1,5 +1,18 @@
 <?php
 return [
+    'GET /app/erm' => ['@clinical', 'Clinical', 'home'],
+    'GET /app/erm/audit' => ['@clinical', 'Clinical', 'audit'],
+    'POST /app/erm/search' => ['@clinical', 'Clinical', 'search'],
+    'POST /app/erm/read' => ['@clinical', 'Clinical', 'read'],
+    'POST /app/erm/history' => ['@clinical', 'Clinical', 'history'],
+    'POST /app/erm/export' => ['@clinical', 'Clinical', 'export'],
+    'POST /app/erm/save' => ['@clinical', 'Clinical', 'save'],
+    'POST /app/erm/request' => ['@clinical', 'Clinical', 'request'],
+    'POST /app/erm/decision' => ['@clinical', 'Clinical', 'decision'],
+    'POST /app/erm/privileges' => ['@clinical', 'Clinical', 'privileges'],
+    'POST /app/erm/care' => ['@clinical', 'Clinical', 'care'],
+    'POST /app/erm/upload' => ['@clinical', 'Clinical', 'upload'],
+    'POST /app/erm/download' => ['@clinical', 'Clinical', 'download'],
     'GET /app/dashboard' => ['dashboard', 'Overview', 'dashboard'],
     'GET /app/peta' => ['map', 'Maps', 'mapPage'],
     'GET /app/peta-sebaran' => ['map', 'Maps', 'mapPage'],

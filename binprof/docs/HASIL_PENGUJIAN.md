@@ -16,9 +16,34 @@ Pengujian lokal memakai PHP 8.4.27, MariaDB 10.11.19, Apache 2.4.68, Chromium 15
 
 ## Menjalankan ulang
 
-1. Jalankan Apache, PHP, dan database pengujian baru dengan origin loopback. Impor kedua SQL, konfigurasikan origin dan DB tersebut, lalu bootstrap `admin@example.invalid` dengan kata sandi sintetis uji. Gunakan `BINPROF_TEST_URL` bila port berbeda dari 18484. Gunakan `BINPROF_TEST_PASSWORD` bila memasukkan kata sandi sintetis lain.
+1. Jalankan Apache, PHP, dan database pengujian baru dengan origin loopback. Impor skema dan migrasi 002 serta 003, konfigurasikan origin dan DB tersebut, lalu bootstrap `admin@example.invalid` dengan kata sandi sintetis uji. Gunakan `BINPROF_TEST_URL` bila port berbeda dari 18484. Gunakan `BINPROF_TEST_PASSWORD` bila memasukkan kata sandi sintetis lain.
 2. Jalankan `python3 tools/tests/smoke_admin.py` dari folder `binprof/`. Skrip menulis data sintetis sebagai fixture dasar. Gunakan database bersih setiap kali.
 3. Impor `tools/tests/map_fixtures.sql` ke database pengujian yang sama. Siapkan `playwright@1.61.1` di mesin pengembangan dan jalankan `node tools/tests/maps.mjs`. Berikan lokasi modul melalui `NODE_PATH` bila diinstal di luar folder proyek dan gunakan `BINPROF_CHROMIUM` untuk path executable yang berbeda.
 4. Untuk menguji mode document root alternatif, buat probe tanpa rahasia di direktori privat pada Apache staging, verifikasi penolakan, lalu aktifkan konfigurasi root. Periksa bahwa probe, ekstensi yang dilarang, dan akses langsung melalui `/public/` ditolak sementara `/ready` dan aset bekerja.
 
-Uji penerapan di cPanel/LiteSpeed, Apache HTTPS produksi, Nginx, MySQL, PHP 8.5, browser selain Chromium, pemulihan backup dan rotasi kunci belum dilakukan. E-RM/Rikkes dan Web Push berada di luar paket pengujian karena belum diimplementasikan.
+Uji penerapan di cPanel/LiteSpeed, Apache HTTPS produksi, Nginx, MySQL, PHP 8.5, browser selain Chromium, pemulihan backup dan rotasi kunci belum dilakukan. Web Push belum diimplementasikan.
+
+## E-RM dan Rikkes
+
+Lingkungan sama dengan tabel di atas. Pengujian klinis memakai personel dan akun DATA DEMO. Impor migrasi 003 pada database yang telah menjalankan administrasi dan peta berhasil.
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| Penetapan supervisor per fasilitas | Lulus. Bootstrap kedua ditolak saat supervisor aktif sudah tersedia. Super Admin dan Viewer tanpa penunjukan ditolak. |
+| Penugasan dan grant | Lulus. Penugasan sendiri dan persetujuan sendiri ditolak. Pencarian NIK tepat hanya mengembalikan ruang lingkup sah. Grant terikat fasilitas, pasien, tujuan, hak, dan waktu. Grant kedaluwarsa dan pencabutan menolak akses. |
+| Catatan dan lampiran | Lulus. Draf privat, tanda tangan internal, kontrol versi, amendemen, histori, validasi PDF, dan unduh lintas fasilitas dengan grant sah diperiksa. |
+| Ekspor privat | Lulus. Grant baca tidak mengizinkan ekspor. Grant ekspor yang valid menghasilkan PDF attachment dengan `Cache-Control: no-store`. |
+| Mutasi, enkripsi, dan audit | Lulus. Identitas pasien bertahan setelah perpindahan satuan. Payload dan alasan akses tidak menyimpan teks uji mentah. Saat tabel audit dibuat tidak tersedia pada database uji, ekspor ditolak dengan 503. |
+| Sesi dan perubahan identitas | Lulus. Penggantian kata sandi oleh pengelola mencabut sesi serta penunjukan klinis sebelumnya. |
+| Regresi | Lulus. Suite administratif dan pengujian browser Chromium peta dijalankan ulang. |
+
+Untuk mereproduksi uji klinis, jalankan smoke administratif lalu impor fixture peta pada database lokal dengan migrasi 003. Dari folder proyek:
+
+```sh
+python3 tools/tests/clinical.py seed
+php tools/clinical-bootstrap.php clinical-a@example.invalid 1
+php tools/clinical-bootstrap.php clinical-b@example.invalid 2
+python3 tools/tests/clinical.py
+```
+
+Gunakan hanya database sintetis. Uji gangguan audit dan kedaluwarsa dilakukan pada salinan database lokal. Penggunaan operasional, integrasi eksternal, dan validasi alur internal situs referensi masih memerlukan akses sah ke staging.

@@ -20,6 +20,12 @@ Simpan kunci per ID, pakai ID baru untuk enkripsi baru, dan pertahankan akses ke
 
 Pisahkan akun migrasi dan runtime. Akun runtime memerlukan operasi pada tabel aplikasi. Batasi UPDATE/DELETE untuk log audit bila hosting menyediakan privilege per tabel. Log aplikasi terikat request ID dan tidak memasukkan pesan mentah dari PDO. Apache access log umumnya memuat query string. Konfigurasikan format tanpa query string untuk pemasangan yang menangani pencarian identitas administratif.
 
+## Operasi klinis
+
+Pisahkan pemegang akses SSH/cPanel dan supervisor klinis dari pengelolaan administratif rutin sesuai tata kelola organisasi. Periksa penugasan, tujuan, cakupan, dan masa berlaku pada pembacaan, riwayat, PDF, dan berkas. Penandatanganan internal menyimpan identitas dan waktu akun petugas. Untuk tanda tangan elektronik tersertifikasi diperlukan layanan terpisah.
+
+Catatan, alasan akses, dan lampiran dienkripsi dengan kunci versi aktif. Associated data mengikat isi ke ID dan versi rekam atau ID lampiran. Simpan backup kunci bersama kebijakan pemulihan data klinis. Audit dicatat sebelum payload sensitif disajikan; kegagalan audit menolak akses. Unduhan PDF menggunakan header privat tanpa cache, dan tidak disimpan sebagai ekspor yang dapat diakses ulang. Kewenangan klinis dan lampiran harus diverifikasi lagi di staging sebelum pemakaian dengan data nyata.
+
 ## Contoh Nginx
 
 Gunakan document root `public/`, tetapkan PHP-FPM socket yang sesuai dengan host, dan tambahkan pengaturan sertifikat serta server_name di vhost.

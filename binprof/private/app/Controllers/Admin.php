@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once PROJECT . '/private/app/Services/admin.php';
+require_once PROJECT . '/private/app/Policies/clinical.php';
 
 function masterIndex(array $user): void
 {
@@ -223,6 +224,9 @@ function userSave(array $actor): never
                     || $beforeUnits !== $units || $beforeFacilities !== $facilities || $before['email'] !== $email;
                 qu('UPDATE users SET name=?,email=?,role_code=?,active=?,password_hash=COALESCE(?,password_hash),
                     session_version=session_version+? WHERE id=?', [$name,$email,$role,$active,$hash,(int) $terminate,$id]);
+                if ($hash !== null || $before['email'] !== $email || ((int) $before['active'] === 1 && !$active)) {
+                    suspendClinicalIdentity($actor['id'], $id);
+                }
                 if ($terminate) {
                     qu('UPDATE auth_sessions SET revoked_at=UTC_TIMESTAMP() WHERE user_id=? AND revoked_at IS NULL', [$id]);
                 }

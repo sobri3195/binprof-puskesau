@@ -16,7 +16,7 @@ Pengujian lokal memakai PHP 8.4.27, MariaDB 10.11.19, Apache 2.4.68, Chromium 15
 
 ## Menjalankan ulang
 
-1. Jalankan Apache, PHP, dan database pengujian baru dengan origin loopback. Impor skema dan migrasi 002 serta 003, konfigurasikan origin dan DB tersebut, lalu bootstrap `admin@example.invalid` dengan kata sandi sintetis uji. Gunakan `BINPROF_TEST_URL` bila port berbeda dari 18484. Gunakan `BINPROF_TEST_PASSWORD` bila memasukkan kata sandi sintetis lain.
+1. Jalankan Apache, PHP, dan database pengujian baru dengan origin loopback. Impor skema dan migrasi 002, 003, dan 004, konfigurasikan origin dan DB tersebut, lalu bootstrap `admin@example.invalid` dengan kata sandi sintetis uji. Gunakan `BINPROF_TEST_URL` bila port berbeda dari 18484. Gunakan `BINPROF_TEST_PASSWORD` bila memasukkan kata sandi sintetis lain.
 2. Jalankan `python3 tools/tests/smoke_admin.py` dari folder `binprof/`. Skrip menulis data sintetis sebagai fixture dasar. Gunakan database bersih setiap kali.
 3. Impor `tools/tests/map_fixtures.sql` ke database pengujian yang sama. Siapkan `playwright@1.61.1` di mesin pengembangan dan jalankan `node tools/tests/maps.mjs`. Berikan lokasi modul melalui `NODE_PATH` bila diinstal di luar folder proyek dan gunakan `BINPROF_CHROMIUM` untuk path executable yang berbeda.
 4. Untuk menguji mode document root alternatif, buat probe tanpa rahasia di direktori privat pada Apache staging, verifikasi penolakan, lalu aktifkan konfigurasi root. Periksa bahwa probe, ekstensi yang dilarang, dan akses langsung melalui `/public/` ditolak sementara `/ready` dan aset bekerja.
@@ -47,3 +47,19 @@ python3 tools/tests/clinical.py
 ```
 
 Gunakan hanya database sintetis. Uji gangguan audit dan kedaluwarsa dilakukan pada salinan database lokal. Penggunaan operasional, integrasi eksternal, dan validasi alur internal situs referensi masih memerlukan akses sah ke staging.
+
+## WhatsApp Cloud API
+
+Uji integrasi dijalankan pada PHP 8.4 dan MariaDB 10.11 dengan request HTTP lokal, database sintetis, dan transport Meta palsu. Migrasi 004 diterapkan setelah skema administrasi, peta, dan klinis. Tidak ada pesan yang dikirim ke nomor nyata.
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| Webhook | Lulus. Challenge GET, HMAC raw body, penolakan signature/JSON yang salah, isolasi Phone Number ID, dan replay ID provider diuji. |
+| Tautan akun | Lulus. Kode sekali pakai, CSRF, konfirmasi oleh akun yang tepat, BSUID dan nomor, penolakan BSUID berbeda dengan nomor sama, serta status belum tertaut diuji. |
+| Pertanyaan dan izin | Lulus. Hitungan dokter, BTCLS, sertifikat, spesialisasi/peta, prioritas, mutasi, rekap bulanan, dan navigasi klinis diperiksa. Viewer ditolak untuk data diklat dan data personal tetap di portal. |
+| Antrean dan pencabutan | Lulus. Perubahan role/sesi dan putus tautan menghalangi pesan antrean. Pemberitahuan dihasilkan dari kejadian peta yang sama, memakai scope, opt-in, kategori, jam tenang, dan STOP. |
+| Retry dan status | Lulus. Penolakan 429 dijadwalkan ulang, kegagalan 403 disimpan, 502 ambigu tidak diulang, callback mengubah status accepted/sent/delivered/read, dan callback terlambat tidak menurunkan status read. |
+
+Untuk reproduksi, gunakan origin loopback, database baru, dan jalankan smoke administratif serta fixture peta. Buat blok WhatsApp sintetis dengan WABA ID `2222222222`, Phone Number ID `1111111111`, app secret `synthetic-whatsapp-webhook-fixture`, token verifikasi `synthetic-whatsapp-verification`, template `binprof_test_map_fixture`, bahasa `id` dan access token kosong. Jalankan `python3 tools/tests/whatsapp.py` dari `binprof/`. Jika PHP berjalan di kontainer, gunakan `BINPROF_WA_TEST_COMMAND` untuk menunjuk eksekusi `tools/tests/whatsapp_fixture.php` di kontainer. Fixture menolak konfigurasi non-loopback, ID produksi, dan access token yang terisi.
+
+Verifikasi callback dan template pada WABA Meta yang sebenarnya, serta pengiriman melalui Cloud API produksi, belum dijalankan.

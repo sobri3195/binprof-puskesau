@@ -1,6 +1,6 @@
 # Peta database
 
-Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql` dan `003_clinical_records.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
+Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, dan `004_whatsapp_cloud.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
 
 - `commands` mengelompokkan `units`. `facilities` terhubung ke satuan dan `facility_types`. Koordinat harus sepasang dan berada dalam rentang lintang/bujur yang berlaku.
 - `personnel` berelasi dengan satuan, fasilitas, pangkat, korps, profesi, spesialisasi, riwayat, penghargaan, dan karya. Foreign key gabungan memeriksa satuan fasilitas. NIK dan kontak menggunakan envelope AEAD. NIK memiliki indeks HMAC pencarian tepat.
@@ -24,3 +24,10 @@ Kategori kejadian memakai `operations` (Operasional), `data` (Pembaruan data), d
 - `clinical_encounters` menyimpan fasilitas, jenis, tanggal, dan nomor versi terkini. `clinical_record_versions` menyimpan payload terenkripsi dan status `draft`, `signed`, atau `amended`. Perubahan memperoleh nomor versi baru dan menyimpan penulis serta waktu.
 - `clinical_documents` mengikat versi klinis ke metadata `file_objects` dan berkas terenkripsi di direktori privat. Penandatanganan dan amendemen mempertahankan tautan lampiran. Unduhan memerlukan otorisasi pembacaan ulang.
 - `clinical_access_logs` mencatat aktor, fasilitas yang diizinkan, pasien bila sah, aksi, alasan terbungkus, hasil, dan ID permintaan. Layar supervisor menampilkan metadata tanpa membuka uraian klinis.
+
+## Migrasi 004
+
+- `whatsapp_link_challenges` menyimpan hash kode sekali pakai, klaim pengirim terenkripsi, versi sesi, dan kedaluwarsa. `whatsapp_links` mengikat akun, saluran WABA, hash BSUID/nomor, identitas tujuan yang terenkripsi, versi sesi, dan persetujuan pemberitahuan.
+- `whatsapp_inbox` menyimpan data input minimum yang terenkripsi sampai diproses. ID provider unik dan urutan antrean mendukung pengulangan callback.
+- `whatsapp_outbox` menyimpan intent/argumen yang terenkripsi sampai pengiriman selesai, status, jumlah upaya, ID provider, dan batas waktu. Tautan dan kejadian peta menjadi referensi untuk pemeriksaan ulang.
+- `whatsapp_receipts` menyimpan callback terdeduplikasi dan waktu status. `whatsapp_map_cursor` mengikuti revisi `map_events` untuk mengantrekan pemberitahuan dari kejadian yang sama.

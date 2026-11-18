@@ -30,3 +30,7 @@ Setiap peran administratif berawal tanpa hak klinis. Supervisor ditetapkan melal
 | Lihat metadata audit klinis | Supervisor di fasilitas ruang kerja | — |
 
 Pemohon tidak dapat menyetujui permintaannya sendiri walaupun memiliki kewenangan pada kedua fasilitas. Perubahan email atau kata sandi oleh pengelola dan penonaktifan akun mencabut kemampuan klinis, penugasan, grant, dan sesi terkait. Penunjukan ulang memerlukan supervisor lain. Notifikasi pengajuan menggunakan pesan generik.
+
+## Kanal WhatsApp
+
+Izin `whatsapp.link` memungkinkan akun aktif menautkan identitasnya sendiri. Setiap intent membutuhkan izin modul yang sama dengan website. Ringkasan personel memakai izin ikhtisar, ringkasan diklat memakai izin baca diklat, mutasi mengikuti peserta/peninjau, dan hitungan peta memakai scope satuan atau fasilitas. Tautan ke E-RM memerlukan penugasan klinis aktif dan selalu diperiksa ulang di portal. Pemberitahuan peta juga memerlukan opt-in aktif dan preferensi kategori.

@@ -14,4 +14,16 @@ return [
     'setup_token_hash' => '',
     'idle_seconds' => 1800,
     'absolute_seconds' => 28800,
+    'whatsapp' => [
+        'enabled' => false,
+        'business_account_id' => '',
+        'phone_number_id' => '',
+        'display_phone' => '', // E.164 digits without a plus sign (optional portal link)
+        'graph_version' => '', // A supported version shown in the Meta developer dashboard
+        'app_secret' => getenv('BINPROF_WA_APP_SECRET') ?: '',
+        'verify_token' => getenv('BINPROF_WA_VERIFY_TOKEN') ?: '',
+        'access_token' => getenv('BINPROF_WA_ACCESS_TOKEN') ?: '',
+        'map_template' => '', // Approved Meta template without variables
+        'template_language' => 'id',
+    ],
 ];

@@ -242,14 +242,14 @@ function mapEventAction(array $user): never
     jsonResponse($result);
 }
 
-function mapSavePreferences(array $user): never
+function storeMapPreferences(int $userId, array $data): void
 {
     $values = [];
     foreach ([...array_keys(MAP_CATEGORIES),'muted'] as $flag) {
-        $values[] = (int) choice($_POST,$flag,['0','1'],'0');
+        $values[] = (int) choice($data,$flag,['0','1'],'0');
     }
-    $start = field($_POST,'quiet_start',5);
-    $end = field($_POST,'quiet_end',5);
+    $start = field($data,'quiet_start',5);
+    $end = field($data,'quiet_end',5);
     if (($start === '') !== ($end === '') || ($start !== '' && ($start === $end
         || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$start)
         || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D',$end)))) {
@@ -259,7 +259,12 @@ function mapSavePreferences(array $user): never
         VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE operations_enabled=VALUES(operations_enabled),
         data_enabled=VALUES(data_enabled),training_enabled=VALUES(training_enabled),muted=VALUES(muted),
         quiet_start=VALUES(quiet_start),quiet_end=VALUES(quiet_end),revision=revision+1',
-        [$user['id'],...$values,$start ?: null,$end ?: null]);
+        [$userId,...$values,$start ?: null,$end ?: null]);
+}
+
+function mapSavePreferences(array $user): never
+{
+    storeMapPreferences($user['id'],$_POST);
     jsonResponse(mapPreferences($user['id']));
 }
 

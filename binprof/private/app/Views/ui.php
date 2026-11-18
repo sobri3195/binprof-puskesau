@@ -9,6 +9,7 @@ const NAVIGATION = [
     '/app/peta-sebaran' => ['Peta sebaran', 'map', '◌'],
     '/app/mutasi' => ['Mutasi', 'transfers.request', '⇄'],
     '/app/erm' => ['E-RM dan Rikkes', '@clinical', '✚'],
+    '/app/whatsapp' => ['WhatsApp', 'whatsapp.link', '◈'],
     '/app/notifikasi' => ['Notifikasi', 'notifications', '◈'],
     '/app/log' => ['Log aktivitas', 'audit', '▤'],
     '/app/users' => ['Pengguna', 'users', '☷'],

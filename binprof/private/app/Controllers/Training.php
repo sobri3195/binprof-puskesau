@@ -43,10 +43,14 @@ function trainingQuery(array $user): array
         $params[] = $end;
     }
     $certificate = choice($_GET, 'certificate', ['', ...array_keys(CERTIFICATE)]);
+    $expiryDays = number($_GET,'expiry_days') ?? 90;
+    if ($expiryDays > 90) {
+        fail(422,'Rentang sertifikat adalah 1–90 hari.');
+    }
     switch ($certificate) {
         case 'unknown': $where[] = 't.expires_on IS NULL'; break;
         case 'current': $where[] = 't.expires_on>?'; $params[] = day(90); break;
-        case 'soon': $where[] = 't.expires_on BETWEEN ? AND ?'; array_push($params, day(), day(90)); break;
+        case 'soon': $where[] = 't.expires_on BETWEEN ? AND ?'; array_push($params, day(), day($expiryDays)); break;
         case 'expired': $where[] = 't.expires_on<?'; $params[] = day(); break;
     }
     return [$from, implode(' AND ', $where), $params];
@@ -93,6 +97,9 @@ function trainingIndex(array $user): void
         }
         echo '</div></div>';
         getStart(TRAINING);
+        if (isset($_GET['expiry_days'])) {
+            echo '<input type="hidden" name="expiry_days" value="' . e($_GET['expiry_days']) . '">';
+        }
         input('q', 'Nama, NRP atau jenis', $_GET['q'] ?? '', max: 100);
         selectField('unit_id', 'Satuan', optionsFor('units', $user, false), $_GET['unit_id'] ?? '', 'Semua');
         selectField('type_id', 'Jenis', optionsFor('training_types', activeOnly: false), $_GET['type_id'] ?? '', 'Semua');

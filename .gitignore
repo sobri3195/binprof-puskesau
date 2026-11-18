@@ -1,0 +1,4 @@
+/binprof/private/config/config.local.php
+/binprof/private/storage/*
+!/binprof/private/storage/.gitkeep
+/binprof-*.zip

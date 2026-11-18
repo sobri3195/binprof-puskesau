@@ -1,0 +1,20 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule "(^|/)\." - [F,END]
+    RewriteRule "(?i)^(?:private|tools|docs|public)(?:/|$)" - [F,END]
+    RewriteRule "(?i)\.(?:sql|bak|log|ini|zip|swp|old)(?:/|$)" - [F,END]
+    RewriteCond %{DOCUMENT_ROOT}/public/assets/$1 -f
+    RewriteRule "^assets/([a-zA-Z0-9_./-]+\.(?:css|js|json|geojson|png|jpe?g|svg|webp|woff2?))$" public/assets/$1 [END]
+    RewriteRule "^assets(?:/|$)" - [F,END]
+    RewriteRule "^index\.php$" - [END]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [END]
+    RewriteRule ^ - [F,END]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

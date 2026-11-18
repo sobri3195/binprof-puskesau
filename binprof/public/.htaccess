@@ -1,0 +1,18 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+<FilesMatch "(?i)(^\.|\.(?:sql|bak|log|ini|zip|swp|old)$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # The project-root front controller rewrites public assets with END.
+    # A direct traversal into this subdirectory must be rejected.
+    RewriteCond %{DOCUMENT_ROOT} !/public/?$ [NC]
+    RewriteRule ^ - [F,END]
+    RewriteRule "(^|/)\." - [F,END]
+    RewriteRule "^(?:private|tools|docs)(?:/|$)" - [F,END,NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [END]
+</IfModule>

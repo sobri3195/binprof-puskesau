@@ -1,6 +1,6 @@
 # Peta database
 
-Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, dan `004_whatsapp_cloud.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
+Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, `004_whatsapp_cloud.sql`, dan `005_personnel_records.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
 
 - `commands` mengelompokkan `units`. `facilities` terhubung ke satuan dan `facility_types`. Koordinat harus sepasang dan berada dalam rentang lintang/bujur yang berlaku.
 - `personnel` berelasi dengan satuan, fasilitas, pangkat, korps, profesi, spesialisasi, riwayat, penghargaan, dan karya. Foreign key gabungan memeriksa satuan fasilitas. NIK dan kontak menggunakan envelope AEAD. NIK memiliki indeks HMAC pencarian tepat.
@@ -31,3 +31,12 @@ Kategori kejadian memakai `operations` (Operasional), `data` (Pembaruan data), d
 - `whatsapp_inbox` menyimpan data input minimum yang terenkripsi sampai diproses. ID provider unik dan urutan antrean mendukung pengulangan callback.
 - `whatsapp_outbox` menyimpan intent/argumen yang terenkripsi sampai pengiriman selesai, status, jumlah upaya, ID provider, dan batas waktu. Tautan dan kejadian peta menjadi referensi untuk pemeriksaan ulang.
 - `whatsapp_receipts` menyimpan callback terdeduplikasi dan waktu status. `whatsapp_map_cursor` mengikuti revisi `map_events` untuk mengantrekan pemberitahuan dari kejadian yang sama.
+
+## Migrasi 005
+
+- `personnel_record_categories` menyediakan jenis Kasus, Sertifikat, Petikan dan jenjang pendidikan. Ijazah memakai jenjang dari kelompok pendidikan. `personnel_case_permissions` mengikat izin Kasus yang ditetapkan khusus ke akun.
+- `personnel_cases` mengikat personel, unit penanganan, petugas, tahap dan keputusan. `personnel_case_updates` mencatat timeline tahap dan tindak lanjut terpisah.
+- `personnel_certificates` menyimpan sertifikat tersendiri atau metadata yang berelasi unik dengan `training_records`. FK gabungan `(training_id,personnel_id)` mengikat pemilik yang sama. Tanggal akhir dan lampiran sumber tetap pada Diklat. Metadata verifikasi mencatat versi sumber yang diperiksa.
+- `personnel_decree_extracts` menyimpan petikan, referensi ke mutasi/riwayat jika ada, serta tautan ke dokumen pengganti. `personnel_education` membedakan `military` dan `general` dan merelasikan ijazah atau sertifikat milik personel yang sama.
+- `personnel_diplomas` menyimpan informasi ijazah. `personnel_record_attachments` mengaitkan `file_objects` ke satu induk bertipe yang memiliki FK. Penayangan ijazah melalui riwayat pendidikan menggunakan file sumber itu juga.
+- `personnel_record_history` menyimpan versi dan perubahan per kategori, waktu, aktor, dan request ID. Endpoint audit administratif umum tidak membaca riwayat Kasus.

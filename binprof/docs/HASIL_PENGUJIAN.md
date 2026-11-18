@@ -16,7 +16,7 @@ Pengujian lokal memakai PHP 8.4.27, MariaDB 10.11.19, Apache 2.4.68, Chromium 15
 
 ## Menjalankan ulang
 
-1. Jalankan Apache, PHP, dan database pengujian baru dengan origin loopback. Impor skema dan migrasi 002, 003, dan 004, konfigurasikan origin dan DB tersebut, lalu bootstrap `admin@example.invalid` dengan kata sandi sintetis uji. Gunakan `BINPROF_TEST_URL` bila port berbeda dari 18484. Gunakan `BINPROF_TEST_PASSWORD` bila memasukkan kata sandi sintetis lain.
+1. Jalankan Apache, PHP, dan database pengujian baru dengan origin loopback. Impor skema dan migrasi 002 hingga 005, konfigurasikan origin dan DB tersebut, lalu bootstrap `admin@example.invalid` dengan kata sandi sintetis uji. Gunakan `BINPROF_TEST_URL` bila port berbeda dari 18484. Gunakan `BINPROF_TEST_PASSWORD` bila memasukkan kata sandi sintetis lain.
 2. Jalankan `python3 tools/tests/smoke_admin.py` dari folder `binprof/`. Skrip menulis data sintetis sebagai fixture dasar. Gunakan database bersih setiap kali.
 3. Impor `tools/tests/map_fixtures.sql` ke database pengujian yang sama. Siapkan `playwright@1.61.1` di mesin pengembangan dan jalankan `node tools/tests/maps.mjs`. Berikan lokasi modul melalui `NODE_PATH` bila diinstal di luar folder proyek dan gunakan `BINPROF_CHROMIUM` untuk path executable yang berbeda.
 4. Untuk menguji mode document root alternatif, buat probe tanpa rahasia di direktori privat pada Apache staging, verifikasi penolakan, lalu aktifkan konfigurasi root. Periksa bahwa probe, ekstensi yang dilarang, dan akses langsung melalui `/public/` ditolak sementara `/ready` dan aset bekerja.
@@ -63,3 +63,20 @@ Uji integrasi dijalankan pada PHP 8.4 dan MariaDB 10.11 dengan request HTTP loka
 Untuk reproduksi, gunakan origin loopback, database baru, dan jalankan smoke administratif serta fixture peta. Buat blok WhatsApp sintetis dengan WABA ID `2222222222`, Phone Number ID `1111111111`, app secret `synthetic-whatsapp-webhook-fixture`, token verifikasi `synthetic-whatsapp-verification`, template `binprof_test_map_fixture`, bahasa `id` dan access token kosong. Jalankan `python3 tools/tests/whatsapp.py` dari `binprof/`. Jika PHP berjalan di kontainer, gunakan `BINPROF_WA_TEST_COMMAND` untuk menunjuk eksekusi `tools/tests/whatsapp_fixture.php` di kontainer. Fixture menolak konfigurasi non-loopback, ID produksi, dan access token yang terisi.
 
 Verifikasi callback dan template pada WABA Meta yang sebenarnya, serta pengiriman melalui Cloud API produksi, belum dijalankan.
+
+## Enam tab catatan Detail Personel
+
+Migrasi 005 diuji pada PHP 8.4, MariaDB 10.11, dan Apache 2.4 dari baseline yang sudah memiliki Personel, Diklat, Mutasi, Peta, E-RM, dan WhatsApp. Seluruh data bersifat sintetis.
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| CRUD dan UI | Lulus. Enam tab dapat membuat, menampilkan, mengubah, memverifikasi, mengarsipkan dan memulihkan catatan. Filter, pagination, dan riwayat diuji. Lima tab lama tetap berfungsi. |
+| Kasus dan isolasi | Lulus. Hak default kosong. Uji penolakan akses tanpa penetapan, beda satuan, salah kategori, salah personel, setelah pencabutan, dan tanpa hak ekspor. Timeline dan tahap penanganan diperiksa. |
+| Dokumen dan relasi | Lulus. Unggah PDF valid, tolak signature salah, periksa link satu file Diklat dan ijazah/transkrip melewati kategori yang sah. Pratinjau menolak status belum dipindai dan mengembalikan respons sandbox tanpa cache untuk fixture yang disimulasikan lulus pemeriksaan. |
+| Tanggal dan verifikasi | Lulus. Tanggal belum diketahui, periode pengingat, stale row version, pembaruan sumber Diklat, dan bukti legalisasi ijazah diperiksa. Ringkasan Dikum hanya memakai data lulus dan terverifikasi dengan jenjang aktif yang diurutkan. |
+| Status dan pengingat | Lulus. Pencabutan atau penggantian Petikan mempertahankan histori dan jabatan personel. Pengingat sertifikat portal dideduplikasi saat cron dijalankan ulang. |
+| Chromium | Lulus pada 1366 px dan 390 px. Cek 11 tab, scroll horizontal mobile, ringkasan Dikum, serta simpan Sertifikat. Regresi Peta, administrasi, klinis, dan WhatsApp sintetis juga lulus. |
+
+Untuk menjalankan ulang, gunakan database sintetis yang telah diisi oleh `tools/tests/smoke_admin.py` dan `tools/tests/map_fixtures.sql`, lalu terapkan migrasi sampai 005. Jalankan `python3 tools/tests/personnel_records.py` dari `binprof/`. Bila PHP ada di kontainer, gunakan `BINPROF_PROFILE_CLI` untuk menunjuk PHP dan `tools/personnel-case-access.php` di kontainer. Lanjutkan dengan `node tools/tests/personnel_records.mjs` memakai Playwright dan Chromium. Suite mengubah data serta izin pada database uji.
+
+Pemindai malware produksi belum tersedia di pengujian. Penerapan pada hosting BINPROFKES belum dilakukan.

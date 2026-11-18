@@ -34,3 +34,61 @@ function validatedDocument(array $file): array
     }
     return [$name, $mime, $bytes];
 }
+
+/** Persist the file and its authorized association as one operation. */
+function storePrivateDocument(array $upload,string $context,callable $attach): void
+{
+    [$name,$mime,$bytes] = validatedDocument($upload);
+    $id = bin2hex(random_bytes(16));
+    $cipher = seal($bytes,"$id:$context");
+    $stage = directory('quarantine') . '/' . $id;
+    $target = directory('uploads') . '/' . $id;
+    try {
+        if (file_put_contents($stage,$cipher,LOCK_EX) !== strlen($cipher)) {
+            throw new RuntimeException('Unable to stage private document');
+        }
+        tx(static function () use ($id,$name,$mime,$bytes,$cipher,$stage,$target,$attach): void {
+            if (!rename($stage,$target)) {
+                throw new RuntimeException('Unable to store private document');
+            }
+            qu("INSERT INTO file_objects (id,original_name,media_type,byte_length,key_id,ciphertext_sha256,scan_status)
+                VALUES (?,?,?,?,?,?,'unavailable')",[$id,$name,$mime,strlen($bytes),cfg('key_id'),hash('sha256',$cipher,true)]);
+            $attach($id);
+        });
+    } catch (Throwable $error) {
+        foreach ([$stage,$target] as $path) {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+        throw $error;
+    }
+}
+
+function readPrivateDocument(array $meta,string $context): string
+{
+    $id = $meta['id'];
+    $path = directory('uploads') . '/' . $id;
+    $cipher = is_file($path) ? file_get_contents($path) : false;
+    if ($cipher === false || !hash_equals($meta['ciphertext_sha256'],hash('sha256',$cipher,true))) {
+        fail(503,'Lampiran tidak dapat diverifikasi.');
+    }
+    return unseal($cipher,"$id:$context");
+}
+
+function sendPrivateDocument(array $meta,string $bytes,bool $preview = false): never
+{
+    $mimes = ['application/pdf'=>'pdf','image/jpeg'=>'jpg','image/png'=>'png'];
+    $extension = $mimes[$meta['media_type']] ?? fail(415,'Jenis lampiran tidak didukung.');
+    if ($preview && $meta['scan_status'] !== 'clean') {
+        fail(409,'Pratinjau memerlukan pemindaian berkas yang lulus.');
+    }
+    header('Cache-Control: no-store, private');
+    header("Content-Security-Policy: default-src 'none'; sandbox");
+    header('Content-Type: ' . $meta['media_type']);
+    header('Content-Length: ' . strlen($bytes));
+    $mode = $preview ? 'inline' : 'attachment';
+    header("Content-Disposition: $mode; filename=\"lampiran.$extension\"; filename*=UTF-8''" . rawurlencode($meta['original_name']));
+    echo $bytes;
+    exit;
+}

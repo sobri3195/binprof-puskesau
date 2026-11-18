@@ -270,37 +270,15 @@ function trainingUpload(array $user): never
 {
     $training = key32($_POST);
     trainingRecord($user, $training);
-    [$name, $mime, $bytes] = validatedDocument($_FILES['certificate'] ?? []);
-    $id = bin2hex(random_bytes(16));
-    $cipher = seal($bytes, "$id:attachment");
-    $stage = directory('quarantine') . '/' . $id;
-    $target = directory('uploads') . '/' . $id;
-    try {
-        if (file_put_contents($stage, $cipher, LOCK_EX) !== strlen($cipher)) {
-            throw new RuntimeException('Unable to stage attachment');
+    storePrivateDocument($_FILES['certificate'] ?? [],'attachment',static function (string $file) use ($user,$training): void {
+        $row = trainingRecord($user,$training,true);
+        if ($row['archived_at']) {
+            fail(409,'Diklat berada dalam arsip.');
         }
-        tx(static function () use ($user, $training, $id, $name, $mime, $bytes, $cipher, $stage, $target): void {
-            $row = trainingRecord($user, $training, true);
-            if ($row['archived_at']) {
-                fail(409, 'Diklat berada dalam arsip.');
-            }
-            if (!rename($stage, $target)) {
-                throw new RuntimeException('Unable to store attachment');
-            }
-            qu("INSERT INTO file_objects (id,original_name,media_type,byte_length,key_id,ciphertext_sha256,scan_status)
-                VALUES (?,?,?,?,?,?,'unavailable')",
-                [$id, $name, $mime, strlen($bytes), cfg('key_id'), hash('sha256', $cipher, true)]);
-            qu('INSERT INTO training_documents (training_id,file_id) VALUES (?,?)', [$training, $id]);
-            audit($user['id'], 'upload', 'training', $training, (int) $row['unit_id']);
-        });
-    } catch (Throwable $error) {
-        foreach ([$stage, $target] as $path) {
-            if (is_file($path)) {
-                unlink($path);
-            }
-        }
-        throw $error;
-    }
+        qu('INSERT INTO training_documents (training_id,file_id) VALUES (?,?)',[$training,$file]);
+        qu('UPDATE training_records SET row_version=row_version+1 WHERE id=?',[$training]);
+        audit($user['id'],'upload','training',$training,(int) $row['unit_id']);
+    });
     done('Lampiran disimpan. Pemindai malware tidak tersedia.', TRAINING . '/detail', ['id'=>$training]);
 }
 
@@ -314,17 +292,7 @@ function trainingDownload(array $user): never
     if (!$meta) {
         fail(404, 'Lampiran tidak ditemukan.');
     }
-    $path = directory('uploads') . '/' . $file;
-    $cipher = is_file($path) ? file_get_contents($path) : false;
-    if ($cipher === false || !hash_equals($meta['ciphertext_sha256'], hash('sha256', $cipher, true))) {
-        fail(503, 'Lampiran tidak dapat diverifikasi.');
-    }
-    $bytes = unseal($cipher, "$file:attachment");
-    audit($user['id'], 'download', 'training', $training, (int) $row['unit_id']);
-    $ext = ['application/pdf'=>'pdf','image/jpeg'=>'jpg','image/png'=>'png'][$meta['media_type']];
-    header('Content-Type: ' . $meta['media_type']);
-    header('Content-Length: ' . strlen($bytes));
-    header('Content-Disposition: attachment; filename="sertifikat.' . $ext . '"; filename*=UTF-8\'\'' . rawurlencode($meta['original_name']));
-    echo $bytes;
-    exit;
+    $bytes = readPrivateDocument($meta,'attachment');
+    audit($user['id'],'download','training',$training,(int) $row['unit_id']);
+    sendPrivateDocument($meta,$bytes);
 }

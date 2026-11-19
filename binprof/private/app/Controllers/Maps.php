@@ -23,7 +23,7 @@ function mapExplore(array $user): void
             ]),JSON_THROW_ON_ERROR)) ?>" data-csrf="<?= e(csrf()) ?>"
             data-categories="<?= e(json_encode(MAP_CATEGORIES,JSON_THROW_ON_ERROR)) ?>"
             data-severity="<?= e(json_encode(MAP_SEVERITIES,JSON_THROW_ON_ERROR)) ?>"
-            data-manage="<?= (int) can($user,'map.manage') ?>" data-respond="<?= (int) can($user,'map.respond') ?>"
+            data-manage="<?= (int) can($user,'map.manage') ?>" data-respond="<?= (int) can($user,'map.respond') ?>" data-report="<?= (int) mapCanReport($user) ?>"
             data-retirement="<?= (int) $retirement ?>" data-zone="<?= e(cfg('timezone') ?? 'Asia/Jakarta') ?>">
             <div class="atlas-toolbar">
                 <div>

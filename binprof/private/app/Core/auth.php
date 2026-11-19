@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once PROJECT . '/private/app/Services/Retirement/policy.php';
+require_once PROJECT . '/private/app/Policies/facility_operator.php';
 
 function email(string $value): string
 {
@@ -80,7 +81,8 @@ function attemptLogin(): never
         $current = qu('SELECT active,session_version,password_hash,role_code FROM users WHERE id=? FOR UPDATE', [$id])->fetch();
         if (!$current || !$current['active'] || (int) $current['session_version'] !== (int) $row['session_version']
             || !hash_equals($current['password_hash'], $row['password_hash'])
-            || !retirementAccountEligible($id,$current['role_code'])) {
+            || !retirementAccountEligible($id,$current['role_code'])
+            || ($current['role_code']===FACILITY_OPERATOR_ROLE && !facilityOperatorAssignment($id))) {
             fail(401, 'Email atau kata sandi tidak valid.');
         }
         if (password_needs_rehash($row['password_hash'], passwordAlgorithm())) {
@@ -113,7 +115,9 @@ function currentUser(bool $touch = true): ?array
         AND s.session_version=u.session_version AND s.last_seen_at > TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP())
         AND s.created_at > TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP())',
         [$key, -(int) (cfg('idle_seconds') ?? 1800), -(int) (cfg('absolute_seconds') ?? 28800)])->fetch();
-    if (!$user || !retirementAccountEligible((int) $user['id'],$user['role_code'])) {
+    $facilityOperator = $user && $user['role_code']===FACILITY_OPERATOR_ROLE;
+    $assignment = $facilityOperator ? facilityOperatorAssignment((int) $user['id']) : null;
+    if (!$user || !retirementAccountEligible((int) $user['id'],$user['role_code']) || ($facilityOperator && !$assignment)) {
         unset($_SESSION['handle'], $_SESSION['csrf']);
         return null;
     }
@@ -124,6 +128,9 @@ function currentUser(bool $touch = true): ?array
     $seen = $touch ? $now : strtotime($user['session_seen'] . ' UTC');
     $user['expires_at'] = min($seen+(int) (cfg('idle_seconds') ?? 1800),
         strtotime($user['session_started'] . ' UTC')+(int) (cfg('absolute_seconds') ?? 28800));
+    if ($assignment) {
+        $user['operator_facility'] = $assignment;
+    }
     unset($user['session_started'],$user['session_seen']);
     return withPermissions($user);
 }
@@ -161,6 +168,12 @@ function scope(array $user, string $unitExpr, ?string $facilityExpr = null): arr
 {
     if ($user['role_code'] === 'super_admin') {
         return ['1=1', []];
+    }
+    if ($user['role_code']===FACILITY_OPERATOR_ROLE) {
+        if ($facilityExpr===null) {
+            return ['0=1', []];
+        }
+        return ["$facilityExpr=(SELECT f.id " . facilityOperatorAssignmentSql() . ')',[$user['id']]];
     }
     $unit = "EXISTS (SELECT 1 FROM user_unit_scopes uus WHERE uus.user_id=? AND uus.unit_id=$unitExpr)";
     if ($facilityExpr === null) {

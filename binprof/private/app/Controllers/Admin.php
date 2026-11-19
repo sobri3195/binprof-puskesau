@@ -161,6 +161,9 @@ function userIndex(array $actor): void
             echo '<p>Untuk akun aktif Kapuskesau, Dirbinprof, Kasipa, Kasibata, dan Staf Binprof, pilih minimal satu satuan atau fasilitas.';
             echo ' Satuan memberi akses ke fasilitas dan personel dalam satuan tersebut.</p>';
         }
+        if (isset($roles[FACILITY_OPERATOR_ROLE])) {
+            echo '<p>Untuk Operator Fasilitas RSAU/FKTP, kosongkan pilihan satuan dan pilih satu fasilitas aktif berjenis RSAU atau FKTP.</p>';
+        }
         scopeFields('units', 'Satuan', optionsFor('units', activeOnly: false), $units);
         scopeFields('facilities', 'Fasilitas', optionsFor('facilities', activeOnly: false), $facilities);
         echo '<p>Super Admin memiliki cakupan administratif global. Pengguna lain mendapatkan cakupan dari pilihan di atas.</p>';
@@ -219,6 +222,10 @@ function userSave(array $actor): never
     saveUnique(static function () use ($actor, $id, $name, $email, $role, $active, $revoke, $hash, $units, $facilities): void {
         tx(static function () use ($actor, $id, $name, $email, $role, $active, $revoke, $hash, $units, $facilities): void {
             qu('SELECT id FROM application_state WHERE id=1 FOR UPDATE');
+            if ($role===FACILITY_OPERATOR_ROLE && ($units || count($facilities)>1
+                || ($active && (!$facilities || !facilityOperatorPlaceIsEligible($facilities[0]))))) {
+                fail(422,'Operator fasilitas aktif memerlukan satu RSAU atau FKTP aktif. Kosongkan cakupan satuan.');
+            }
             $created = !$id;
             if ($id) {
                 $before = qu('SELECT * FROM users WHERE id=? FOR UPDATE', [$id])->fetch();

@@ -1,6 +1,6 @@
 # Peta database
 
-Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, `004_whatsapp_cloud.sql`, `005_personnel_records.sql`, `006_personnel_retirements.sql`, `007_executive_dashboard.sql`, dan `008_binprof_position_roles.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
+Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, `004_whatsapp_cloud.sql`, `005_personnel_records.sql`, `006_personnel_retirements.sql`, `007_executive_dashboard.sql`, `008_binprof_position_roles.sql`, dan `009_facility_operator.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
 
 - `commands` mengelompokkan `units`. `facilities` terhubung ke satuan dan `facility_types`. Koordinat harus sepasang dan berada dalam rentang lintang/bujur yang berlaku.
 - `personnel` berelasi dengan satuan, fasilitas, pangkat, korps, profesi, spesialisasi, riwayat, penghargaan, dan karya. Foreign key gabungan memeriksa satuan fasilitas. NIK dan kontak menggunakan envelope AEAD. NIK memiliki indeks HMAC pencarian tepat.
@@ -60,3 +60,7 @@ Kategori kejadian memakai `operations` (Operasional), `data` (Pembaruan data), d
 ## Migrasi 008
 
 Migrasi ini menambah lima peran jabatan ke `roles` dan izin eksplisit ke `role_permissions`. Izin `personnel.identity` memisahkan akses kontak/NIK dari baca profil. Pemberian izin ini mempertahankan akses pembaca profil yang sudah ada sebelum migrasi. Penetapan peran tetap memakai `users.role_code`. Cakupan memakai `user_unit_scopes` dan `user_facility_scopes`. Migrasi mempertahankan pengaturan akun, penugasan, dan histori yang sudah tersimpan.
+
+## Migrasi 009
+
+Peran `operator_fasilitas` menggunakan `users.role_code` dan `user_facility_scopes`. Server memerlukan tepat satu fasilitas aktif dari jenis `rsau` atau `fktp` dan menolak akun dengan cakupan satuan. Entri jenis FKTP ditambahkan bila belum tersedia. Izin `map.report` memisahkan pelaporan dari pengakuan dan penyelesaian kejadian di peta.

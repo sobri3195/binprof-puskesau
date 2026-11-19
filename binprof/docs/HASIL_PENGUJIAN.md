@@ -125,3 +125,17 @@ Migrasi 008 diuji pada MariaDB 10.11 dan PHP 8.4. Suite memakai data sintetis se
 | Perubahan akun | Lulus. Perubahan jabatan dan cakupan mencabut sesi lama. Login baru hanya memberi akses dengan pengaturan terbaru. |
 
 Untuk reproduksi, siapkan server dan database uji loopback dengan fixture `tools/tests/smoke_admin.py`, `tools/tests/map_fixtures.sql`, dan migrasi hingga 008. Dari `binprof/`, jalankan `python3 tools/tests/position_roles.py`.
+
+## Operator Fasilitas RSAU/FKTP
+
+Migrasi 009 diuji setelah 008 pada database sintetis MariaDB 10.11 dengan PHP 8.4.
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| Penugasan | Lulus. RSAU dan FKTP memakai peran yang sama. Akun tanpa fasilitas, dengan cakupan satuan, dengan lebih dari satu fasilitas, atau dengan jenis lain ditolak. |
+| Input dan isolasi | Lulus. Operator membuat dan menyunting personel, mencatat diklat dan sertifikat, serta mengunggah dan membaca lampiran pada fasilitas sendiri. Daftar, detail, perubahan fasilitas, dan unduhan di luar cakupan ditolak, termasuk untuk fasilitas lain dalam satu satuan. |
+| Pembagian tugas | Lulus. Operator mengajukan pensiun, melaporkan kejadian, dan mengerjakan arahan yang ditugaskan. Verifikasi sertifikat, persetujuan pensiun, penyelesaian kejadian, penutupan arahan, dan ekspor ditolak. |
+| Sesi | Lulus. Penggantian fasilitas akun mencabut sesi lama. Penggantian jenis fasilitas ke jenis yang tidak memenuhi syarat memblokir sesi dan login baru. |
+| Formulir mobile | Lulus pada Chromium 390 px. Halaman Input Fasilitas dan pelaporan kejadian dari peta dapat digunakan. |
+
+Untuk reproduksi uji HTTP, siapkan fixture administratif dan peta pada server uji loopback dengan migrasi hingga 009. Jalankan `python3 tools/tests/facility_operator.py` dari folder `binprof/`. Gunakan akun dan data sintetis.

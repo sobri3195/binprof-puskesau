@@ -242,13 +242,22 @@ function personnelForm(array $user): void
         echo '<div class="form-grid">';
         input('name', 'Nama', $row['name'] ?? '', required: true);
         input('nrp', 'NRP', $row['nrp'] ?? '', required: true, max: 40);
-        if (!$id) {
-            [$scoped,$args] = scope($user,'u.id','f.id');
-            $units = qu("SELECT DISTINCT u.id,u.name FROM units u LEFT JOIN facilities f ON f.unit_id=u.id AND f.active=1
-                WHERE u.active=1 AND $scoped ORDER BY u.name,u.id",$args)->fetchAll(PDO::FETCH_KEY_PAIR);
-            selectField('unit_id', 'Satuan', $units);
+        $facility = $user['operator_facility'] ?? null;
+        if ($facility) {
+            if (!$id) {
+                echo '<input type="hidden" name="unit_id" value="' . e($facility['unit_id']) . '">';
+            }
+            echo '<input type="hidden" name="facility_id" value="' . e($facility['id']) . '">';
+            definition(['Satuan'=>$facility['unit'],'Fasilitas'=>$facility['name']]);
+        } else {
+            if (!$id) {
+                [$scoped,$args] = scope($user,'u.id','f.id');
+                $units = qu("SELECT DISTINCT u.id,u.name FROM units u LEFT JOIN facilities f ON f.unit_id=u.id AND f.active=1
+                    WHERE u.active=1 AND $scoped ORDER BY u.name,u.id",$args)->fetchAll(PDO::FETCH_KEY_PAIR);
+                selectField('unit_id', 'Satuan', $units);
+            }
+            selectField('facility_id', 'Fasilitas', optionsFor('facilities', $user), $row['facility_id'] ?? '', 'Tanpa fasilitas');
         }
-        selectField('facility_id', 'Fasilitas', optionsFor('facilities', $user), $row['facility_id'] ?? '', 'Tanpa fasilitas');
         selectField('profession_id', 'Profesi', optionsFor('professions'), $row['profession_id'] ?? '');
         selectField('rank_id', 'Pangkat', optionsFor('ranks'), $row['rank_id'] ?? '', 'Belum dicatat');
         selectField('corps_id', 'Korps', optionsFor('corps'), $row['corps_id'] ?? '', 'Belum dicatat');

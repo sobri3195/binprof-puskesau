@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 const NAVIGATION = [
+    '/app/peta-kendali' => ['Peta Kendali Pimpinan', 'executive.view', '◉'],
+    '/app/peta-kendali/arahan' => ['Arahan', 'executive.work', '▤'],
     '/app/dashboard' => ['Ikhtisar', 'dashboard', '▦'],
     '/app/pensiun' => ['Pensiun', 'retirement.read', '◷'],
     '/app/personel' => ['Personel', 'personnel.read', '◎'],
@@ -90,6 +92,15 @@ function postButton(string $path, string $label, array $hidden = [], string $cla
 {
     postStart($path, $hidden);
     echo '<button type="submit" class="' . e($class) . '">' . e($label) . '</button></form>';
+}
+
+function definition(array $values): void
+{
+    echo '<dl class="definitions">';
+    foreach ($values as $name => $value) {
+        echo '<div><dt>' . e($name) . '</dt><dd>' . e($value === null || $value === '' ? '—' : $value) . '</dd></div>';
+    }
+    echo '</dl>';
 }
 
 function input(string $name, string $label, mixed $value = '', string $type = 'text', bool $required = false, int $max = 160): void

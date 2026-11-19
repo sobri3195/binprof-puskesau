@@ -23,11 +23,18 @@ function trainingQuery(array $user): array
         $where[] = '(LOCATE(?,p.name)>0 OR LOCATE(?,p.nrp)>0 OR LOCATE(?,tt.name)>0)';
         array_push($params, $q, $q, $q);
     }
-    foreach (['unit_id'=>'p.unit_id','type_id'=>'t.type_id'] as $name => $column) {
+    foreach (['unit_id'=>'p.unit_id','type_id'=>'t.type_id','facility_id'=>'p.facility_id','profession_id'=>'p.profession_id'] as $name => $column) {
         if (($value = number($_GET, $name)) !== null) {
             $where[] = "$column=?";
             $params[] = $value;
         }
+    }
+    if (($specialty = number($_GET,'specialty_id')) !== null) {
+        $where[] = 'EXISTS (SELECT 1 FROM personnel_specialties s WHERE s.personnel_id=p.id AND s.specialty_id=?)';
+        $params[] = $specialty;
+    }
+    if (choice($_GET,'active_personnel',['0','1'],'0')==='1') {
+        $where[] = 'p.active=1';
     }
     $start = calendar($_GET, 'from');
     $end = calendar($_GET, 'until');
@@ -102,6 +109,10 @@ function trainingIndex(array $user): void
         }
         input('q', 'Nama, NRP atau jenis', $_GET['q'] ?? '', max: 100);
         selectField('unit_id', 'Satuan', optionsFor('units', $user, false), $_GET['unit_id'] ?? '', 'Semua');
+        selectField('facility_id','Fasilitas',optionsFor('facilities',$user,false),$_GET['facility_id'] ?? '','Semua');
+        selectField('profession_id','Profesi',optionsFor('professions',activeOnly:false),$_GET['profession_id'] ?? '','Semua');
+        selectField('specialty_id','Spesialisasi',optionsFor('specialties',activeOnly:false),$_GET['specialty_id'] ?? '','Semua');
+        selectField('active_personnel','Status dinas peserta',['0'=>'Semua','1'=>'Aktif'],$_GET['active_personnel'] ?? '0');
         selectField('type_id', 'Jenis', optionsFor('training_types', activeOnly: false), $_GET['type_id'] ?? '', 'Semua');
         selectField('state', 'Pelaksanaan', ['0'=>'Belum','1'=>'Sudah','archived'=>'Arsip'], $_GET['state'] ?? '', 'Semua nonarsip');
         selectField('certificate', 'Sertifikat', CERTIFICATE, $_GET['certificate'] ?? '', 'Semua');

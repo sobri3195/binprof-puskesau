@@ -96,3 +96,19 @@ Migrasi 006 berhasil diimpor ke MariaDB 10.11 setelah skema 005 berisi fixture s
 | Chromium desktop dan mobile | Lulus. Layer dan periode pensiun, timeline, tabel perbandingan, batas agregat Viewer, serta roster/profil pada lebar 360 px diperiksa. Regresi fullscreen native dan mode perluas, 3D, serta kejadian peta lulus. |
 
 Jalankan suite pada database lokal sekali pakai. Setelah menyiapkan fixture administratif, fixture peta, dan migrasi sampai 006, jalankan `python3 tools/tests/personnel_records.py` lalu `python3 tools/tests/retirement.py` dari folder `binprof/`. Setel `BINPROF_PROFILE_CLI` dan `BINPROF_RETIREMENT_CLI` apabila PHP berjalan di kontainer. Jalankan `BINPROF_RETIREMENT_FIXTURE=1 node tools/tests/maps.mjs` setelah suite tersebut. Cron cPanel dan migrasi produksi belum dijalankan.
+
+## Peta Kendali Pimpinan
+
+Migrasi 007 berhasil diterapkan pada database sintetis MariaDB 10.11 dengan migrasi 002–006 dan fixture peta. Pengujian HTTP memakai PHP 8.4 di Apache, dilanjutkan Chromium dengan Playwright.
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| Landing dan otorisasi | Lulus. Pimpinan masuk ke Peta Kendali, akun tanpa izin ditolak, cakupan fasilitas aktif membatasi API, formulir, arahan, dokumen, preset, dan snapshot. |
+| KPI, sumber dan data kosong | Lulus. KPI sesuai baris peta dan tabel, target belum terverifikasi belum dinilai, perubahan roster membatalkan penilaian sebelumnya, sertifikat wajib dan kejadian kritis memakai sumber terverifikasi. |
+| Proyeksi dan historis | Lulus. Keputusan resmi mengurangi proyeksi pada horizon, angka historis mempertahankan snapshot, tanggal tanpa snapshot dan dimensi riwayat yang belum diliput tetap kosong. |
+| Arahan | Lulus. PIC luar scope ditolak, CSRF diperiksa, dokumen tersamar ditolak, bukti sah tetap pada tahap kerja, pengembalian memerlukan alasan, PIC tidak dapat menyelesaikan sendiri, dan reviewer menyelesaikan setelah pengajuan kembali. |
+| Desktop dan mobile | Lulus di desktop 1440 px dan mobile 360 px. Fullscreen native dan mode perluas, Escape, dialog perbandingan, rotasi yang dijeda saat interaksi, mode rapat, Three.js lokal, cleanup canvas, serta fallback WebGL diperiksa. |
+| Delta dan sesi | Lulus. Respons delta kosong tidak mengulang baris. Status luring menandai data lama. Logout membatalkan permintaan berikutnya dan membersihkan data serta dialog dari tampilan. |
+| Ekspor dan data privat | Lulus. Ekspor menghasilkan berkas PDF A4 lanskap satu halaman dengan header privat, memakai agregat dan filter dari cakupan yang sah. Judul/instruksi arahan serta catatan personel privat tidak ikut dalam payload Peta Kendali. |
+
+Untuk reproduksi, jalankan `tools/tests/smoke_admin.py` dan impor `tools/tests/map_fixtures.sql` pada server uji loopback sesuai bagian awal. Terapkan migrasi hingga 007. Dari `binprof/`, jalankan `python3 tools/tests/executive.py` lalu `node tools/tests/executive.mjs` dengan Playwright dan Chromium. Gunakan database sintetis yang belum memiliki data suite Peta Kendali. Lingkungan produksi dan cPanel belum diuji untuk perubahan ini.

@@ -61,10 +61,10 @@ try {
     if (!installed()) {
         fail(503, 'Instalasi belum selesai. Jalankan bootstrap akun pertama.');
     }
-    $user = currentUser();
+    $user = currentUser($route !== '/api/executive/data' || ($_GET['activity'] ?? '') === '1');
     if (in_array($route, ['/', '/index.php', '/login'], true) && $method === 'GET') {
         if ($user) {
-            redirect('/app/dashboard');
+            redirect(homeFor($user));
         }
         loginView();
         exit;

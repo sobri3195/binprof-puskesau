@@ -263,7 +263,7 @@ async function openFacility(id, {reveal = false} = {}) {
             const personnel = element("div");
             detail.append(button("Muat daftar personel",() => loadPersonnel(id,1,personnel,revision)),personnel);
         }
-        if (root.dataset.manage === "1") detail.append(newEventForm(id));
+        if (root.dataset.report === "1") detail.append(newEventForm(id));
         if (reveal) {
             detail.scrollIntoView({block:"nearest"});
             title.focus({preventScroll:true});

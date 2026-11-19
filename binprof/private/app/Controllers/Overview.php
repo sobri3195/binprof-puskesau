@@ -47,10 +47,24 @@ function dashboard(array $user): void
             WHERE $population AND t.archived_at IS NULL AND t.expires_on BETWEEN ? AND ?", [...$args,day(),day(90)])->fetchColumn();
     }
     $retirement = retirementMetricsAllowed($user) ? retirementMetrics($user,null,[],12)[0] : null;
-    page('Ikhtisar', static function () use ($user,$counts,$ranks,$units,$facilities,$reminders,$retirement): void {
-        echo '<section class="hero"><div><h2>Tenaga kesehatan</h2><p>Ringkasan personel aktif dan fasilitas dalam cakupan Anda.</p></div>';
-        linkButton('/app/peta', 'Lihat peta fasilitas');
-        echo '</section><div class="stats">';
+    $workplace = $user['operator_facility'] ?? null;
+    page($workplace ? 'Input Fasilitas' : 'Ikhtisar',
+        static function () use ($user,$counts,$ranks,$units,$facilities,$reminders,$retirement,$workplace): void {
+        if ($workplace) {
+            echo '<section class="hero"><div><h2>' . e($workplace['name']) . '</h2><p>'
+                . e($workplace['type'] . ' · ' . $workplace['unit']) . '</p></div><div class="actions">';
+            linkButton('/app/personel/edit','Tambah personel');
+            linkButton('/app/pelatihan/edit','Catat diklat');
+            linkButton('/app/personel','Sertifikat dan dokumen personel');
+            linkButton('/app/peta','Laporkan kejadian');
+            linkButton('/app/peta-kendali/arahan','Arahan untuk saya');
+            echo '</div></section>';
+        } else {
+            echo '<section class="hero"><div><h2>Tenaga kesehatan</h2><p>Ringkasan personel aktif dan fasilitas dalam cakupan Anda.</p></div>';
+            linkButton('/app/peta', 'Lihat peta fasilitas');
+            echo '</section>';
+        }
+        echo '<div class="stats">';
         foreach (['active'=>'Personel aktif','doctors'=>'Dokter','dentists'=>'Dokter gigi','nurses'=>'Perawat','specialists'=>'Dokter spesialis'] as $key=>$label) {
             echo '<div><span>' . e($label) . '</span><strong>' . e($counts[$key] ?? 0) . '</strong></div>';
         }

@@ -73,3 +73,13 @@ Setelah migrasi `008_binprof_position_roles.sql`, Super Admin membuka **Pengguna
 Kasipa dan Kasibata mendapat kewenangan setingkat. Pembagian bidang kerja ditetapkan melalui cakupan akun. Dalam alur pensiun, Staf Binprof dapat menyiapkan pengajuan, Kasipa atau Kasibata memverifikasi Petikan, Dirbinprof memverifikasi pengajuan, lalu Kapuskesau menyetujui atau mengembalikan untuk perbaikan. Server tetap memeriksa pemisahan pengaju, pemeriksa dan pemberi persetujuan.
 
 Kontak dan NIK memerlukan `personnel.identity`, yang belum diberikan kepada lima jabatan baru. Hak Kasus dan klinis memerlukan penetapan tersendiri. Pengelolaan akun, master, serta persetujuan dan pemrosesan mutasi tetap memakai peran Super Admin. Akun lama dapat diubah satu per satu lewat menu **Pengguna**.
+
+## Operator Fasilitas RSAU/FKTP
+
+1. Impor `009_facility_operator.sql` setelah 008. Di **Master data → Fasilitas**, gunakan jenis RSAU atau FKTP sesuai klasifikasi fasilitas. Migrasi menambah pilihan jenis FKTP bila belum tersedia.
+2. Di **Pengguna**, buat akun per petugas dengan peran **Operator Fasilitas RSAU/FKTP**. Pilih satu fasilitas aktif dan kosongkan seluruh pilihan satuan. Fasilitas, jenis fasilitas, dan satuan induknya harus aktif.
+3. Setelah login, petugas membuka **Input Fasilitas**. Pintasan mengarah ke personel, diklat, sertifikat/dokumen, pelaporan kejadian, dan arahan yang ditugaskan. Formulir personel mengisi fasilitas dari penugasan akun. Operator juga dapat mengajukan berkas pensiun fasilitasnya.
+
+Server memeriksa fasilitas pada sesi, daftar, detail, penyimpanan, dan unduhan. Fasilitas lain dalam satu satuan tetap berada di luar cakupan. Penggantian fasilitas pada akun mencabut sesi lama. Perubahan klasifikasi atau penonaktifan fasilitas, jenis, atau satuan membuat penugasan tersebut berhenti berlaku.
+
+Operator dapat memasukkan dan memperbarui data administratif serta melampirkan dokumen dalam cakupannya. Verifikasi dokumen, persetujuan pensiun, pengakuan/penyelesaian kejadian, dan penutupan arahan memerlukan kewenangan petugas lain. Administrasi pengguna/master, ekspor, dan NIK/kontak memerlukan izin tersendiri. Kasus dan klinis menggunakan penetapan akses terpisah.

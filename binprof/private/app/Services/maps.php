@@ -182,11 +182,16 @@ function mapEventsPoll(array $user): never
     jsonResponse($payload);
 }
 
+function mapCanReport(array $user): bool
+{
+    return can($user,'map.manage') || can($user,'map.report');
+}
+
 function mapEventAction(array $user): never
 {
     $action = choice($_POST,'action',['create','read','acknowledge','resolve']);
     $facility = number($_POST,'facility') ?? fail(422,'Fasilitas diperlukan.');
-    if (($action === 'create' || $action === 'resolve') && !can($user,'map.manage')) {
+    if (($action === 'create' && !mapCanReport($user)) || ($action === 'resolve' && !can($user,'map.manage'))) {
         fail(403,'Pengelolaan kejadian memerlukan izin.');
     }
     if ($action === 'acknowledge' && !can($user,'map.respond')) {

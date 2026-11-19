@@ -21,7 +21,7 @@ function executiveView(array $user,array $data,array $pickers,array $presets,str
         ])),JSON_THROW_ON_ERROR)) ?>">
         <div class="exec-header">
             <div><p class="exec-brand">BINPROFKES · KESEHATAN TNI AU</p>
-            <h2>Peta Kendali Pimpinan</h2>
+            <h1>Peta Kendali Pimpinan</h1>
             <p><?= e($scope) ?> <span aria-hidden="true">·</span> <span data-exec-scope><?= e($data['scope']) ?></span></p></div>
             <div class="actions">
                 <button type="button" data-fullscreen aria-pressed="false">Layar penuh</button>
@@ -30,34 +30,54 @@ function executiveView(array $user,array $data,array $pickers,array $presets,str
             </div>
         </div>
         <div data-exec-content>
-            <details class="exec-filters" open>
-                <summary>Pencarian, cakupan, dan periode</summary>
+            <div class="exec-reference">
+                <p data-exec-period>Tanggal acuan <?= e($data['reference'] ?? 'belum dipilih') ?></p>
+                <p data-exec-sync role="status">Pembaruan sumber <?= e($data['source_at'] ? $data['source_at'] . ' UTC' : 'belum tersedia') ?></p>
+            </div>
+            <div class="exec-kpis" data-exec-kpi>
+                <?php foreach ($data['labels'] as $key=>$label): ?>
+                    <button class="exec-kpi<?= $data['kpi'][$key] === null ? ' is-unavailable' : '' ?>" type="button" data-kpi="<?= e($key) ?>" aria-pressed="<?= $filters['metric']===$key ? 'true' : 'false' ?>">
+                        <span><?= e($label) ?></span><strong><?= e($data['kpi'][$key] ?? ($key==='shortage' ? 'Belum dapat dinilai' : 'Belum tersedia')) ?></strong>
+                        <small><?= e($data['covered'][$key]) ?> fasilitas dengan data</small>
+                    </button>
+                <?php endforeach; ?>
+            </div>
+            <section class="exec-search-panel" aria-label="Pencarian dan cakupan">
                 <?php getStart(EXECUTIVE); ?>
-                <div class="atlas-fields" data-exec-filter>
-                    <?php
-                    input('q','Nama atau kode fasilitas',$filters['q'],max:100);
-                    foreach (['command_id'=>'Komando','unit_id'=>'Satuan','facility_id'=>'Fasilitas','type_id'=>'Jenis fasilitas',
-                        'profession_id'=>'Profesi','specialty_id'=>'Spesialisasi'] as $key=>$label) {
-                        selectField($key,$label,$pickers[$key],$filters[$key],'Semua');
-                    }
-                    selectField('mode','Mode waktu',['now'=>'Saat ini','history'=>'Historis','projection'=>'Proyeksi'],$filters['mode']);
-                    input('date','Tanggal snapshot',$filters['date'] ?? '','date');
-                    selectField('months','Periode proyeksi',RETIREMENT_MAP_PERIODS,$filters['months']);
-                    ?>
+                <div data-exec-filter>
+                    <div class="exec-search-row">
+                        <label class="exec-search-field">Nama atau kode fasilitas
+                            <input type="search" name="q" value="<?= e($filters['q']) ?>" maxlength="100">
+                        </label>
+                        <?php selectField('mode','Mode waktu',['now'=>'Saat ini','history'=>'Historis','projection'=>'Proyeksi'],$filters['mode']); ?>
+                        <div class="actions"><button>Terapkan</button><a class="button secondary" data-exec-reset href="<?= e(url(EXECUTIVE)) ?>">Reset</a></div>
+                    </div>
+                    <details class="exec-filters" <?= $filters['mode']==='now' ? '' : 'open' ?>>
+                        <summary>Filter lanjutan <span data-exec-filter-status></span></summary>
+                        <div class="atlas-fields">
+                            <?php
+                            foreach (['command_id'=>'Komando','unit_id'=>'Satuan','facility_id'=>'Fasilitas','type_id'=>'Jenis fasilitas',
+                                'profession_id'=>'Profesi','specialty_id'=>'Spesialisasi'] as $key=>$label) {
+                                selectField($key,$label,$pickers[$key],$filters[$key],'Semua');
+                            }
+                            ?>
+                            <div data-exec-date><?php input('date','Tanggal snapshot',$filters['date'] ?? '','date'); ?></div>
+                            <div data-exec-horizon><?php selectField('months','Periode proyeksi',RETIREMENT_MAP_PERIODS,$filters['months']); ?></div>
+                        </div>
+                    </details>
                 </div>
-                <div class="actions"><button>Terapkan</button><a class="button secondary" data-exec-reset href="<?= e(url(EXECUTIVE)) ?>">Reset</a></div>
                 </form>
-            </details>
+            </section>
             <section class="exec-presets" aria-label="Preset">
                 <div class="actions" data-exec-builtins>
                     <?php foreach (['now'=>'Situasi Hari Ini','staffing'=>'Kebutuhan Tenaga','retirement'=>'Pensiun 12 Bulan',
                         'certificate'=>'Kesiapan Kompetensi','directive'=>'Tindak Lanjut Pimpinan'] as $key=>$label): ?>
-                        <button type="button" class="secondary" data-exec-preset="<?= e($key) ?>"><?= e($label) ?></button>
+                        <button type="button" class="secondary" data-exec-preset="<?= e($key) ?>" aria-pressed="false"><?= e($label) ?></button>
                     <?php endforeach; ?>
                     <button type="button" class="secondary" data-exec-rotate aria-pressed="false">Putar preset</button>
                 </div>
                 <details class="exec-tools">
-                    <summary>Preset tersimpan dan laporan</summary>
+                    <summary>Preset dan laporan</summary>
                     <form class="actions" data-exec-save>
                         <?php input('name','Nama preset',required:true,max:80); ?>
                         <button>Simpan preset</button>
@@ -76,24 +96,11 @@ function executiveView(array $user,array $data,array $pickers,array $presets,str
                     </div>
                 </details>
             </section>
-            <div class="exec-reference">
-                <p data-exec-period>Tanggal acuan <?= e($data['reference'] ?? 'belum dipilih') ?></p>
-                <p data-exec-sync role="status">Pembaruan sumber <?= e($data['source_at'] ? $data['source_at'] . ' UTC' : 'belum tersedia') ?></p>
-            </div>
-            <div class="exec-kpis" data-exec-kpi>
-                <?php foreach ($data['labels'] as $key=>$label): ?>
-                    <button class="exec-kpi" type="button" data-kpi="<?= e($key) ?>" aria-pressed="<?= $filters['metric']===$key ? 'true' : 'false' ?>">
-                        <span><?= e($label) ?></span><strong><?= e($data['kpi'][$key] ?? 'Belum tersedia') ?></strong>
-                        <small><?= e($data['covered'][$key]) ?> fasilitas dengan data</small>
-                    </button>
-                <?php endforeach; ?>
-            </div>
             <p data-exec-status class="exec-note" role="status" <?= $data['status'] ? '' : 'hidden' ?>><?= e($data['status']) ?></p>
             <div class="exec-grid">
                 <section class="exec-map-box" aria-label="Peta interaktif">
                     <div class="exec-map-tools">
                         <?php selectField('layer','Layer',EXEC_LAYERS,$filters['layer']); ?>
-                        <p class="subtle">Alat, layanan, dan kesiapan klinis memerlukan sumber terverifikasi.</p>
                         <div class="actions">
                             <button type="button" class="secondary" data-exec-fit>Lihat semua</button>
                             <button type="button" class="secondary" data-exec-globe aria-pressed="false">Globe 3D</button>
@@ -109,12 +116,14 @@ function executiveView(array $user,array $data,array $pickers,array $presets,str
                     <div class="map-canvas exec-map globe" data-exec-scene role="region" aria-label="Globe fasilitas 3D" hidden></div>
                     <noscript><p>Gunakan filter dan tabel fasilitas. Peta interaktif memerlukan JavaScript.</p></noscript>
                 </section>
-                <aside class="exec-side">
-                    <section><h3>Lima prioritas utama</h3><ol class="exec-priorities" data-exec-priorities>
+                <section class="exec-priority-box" aria-labelledby="exec-priority-heading">
+                    <h3 id="exec-priority-heading">Lima prioritas utama</h3><ol class="exec-priorities" data-exec-priorities>
                         <?php foreach ($data['priorities'] as $item): ?><li><?= e($item['facility'] . ' · ' . $item['reason']) ?></li><?php endforeach; ?>
-                    </ol></section>
-                    <section data-exec-detail aria-label="Detail fasilitas"><h3>Detail fasilitas</h3><p>Pilih fasilitas di peta, prioritas, atau tabel.</p></section>
-                </aside>
+                    </ol>
+                </section>
+                <section class="exec-detail-box" data-exec-detail aria-label="Detail fasilitas">
+                    <h3>Detail fasilitas</h3><p>Pilih fasilitas di peta, prioritas, atau tabel.</p>
+                </section>
             </div>
             <section class="exec-results"><h3>Fasilitas dalam filter</h3><div data-exec-table>
                 <?php table(['Fasilitas','Satuan','Personel tercatat','Gap SDM'],$data['rows'],static fn(array $r) =>

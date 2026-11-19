@@ -188,6 +188,9 @@ function personnelDetail(array $user): void
                 linkButton('/app/mutasi', 'Ajukan mutasi', ['id' => $id]);
             }
         }
+        if (!$record['archived_at'] && can($user,'training.write')) {
+            linkButton('/app/pelatihan/edit','Catat diklat',['personnel_id'=>$id]);
+        }
         echo '</div></div><nav class="tabs personnel-tabs" aria-label="Bagian profil">';
         foreach ($tabs as $key => $label) {
             echo '<a ' . ($key === $tab ? 'aria-current="page" ' : '') . 'href="' . e(url(PERSONNEL . '/detail',

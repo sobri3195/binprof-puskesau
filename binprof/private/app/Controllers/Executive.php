@@ -32,7 +32,7 @@ function executivePage(array $user): void
     $model['facets'] = array_map(static fn(array $row): array => array_intersect_key($row,
         array_fill_keys(['id','unit_id','command_id','type_id'],true)),$facilities);
     $model['session_seconds'] = max(0,$user['expires_at']-time());
-    page('Peta Kendali Pimpinan',static fn () => executiveView($user,$model,$pickers,$presets,$scope),$user,EXECUTIVE);
+    page('Peta Kendali Pimpinan',static fn () => executiveView($user,$model,$pickers,$presets,$scope),$user,EXECUTIVE,showHeader:false);
 }
 
 function executiveData(array $user): never

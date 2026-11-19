@@ -52,6 +52,8 @@ Jalankan verifikasi di staging sebelum data nyata dimasukkan. Pengiriman email p
 
 ## Dokumen
 
+- [Analisis UI/UX dan perubahan tampilan](docs/UI_UX.md)
+
 - [Peta Kendali Pimpinan, indikator, scope, dan shared hosting](docs/PETA_KENDALI.md)
 
 - [Operasional Pensiun/Purnawirawan](docs/PENSIUN.md)

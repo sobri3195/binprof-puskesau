@@ -2,26 +2,61 @@
 declare(strict_types=1);
 
 const NAVIGATION = [
-    '/app/peta-kendali' => ['Peta Kendali Pimpinan', 'executive.view', '◉'],
-    '/app/peta-kendali/arahan' => ['Arahan', 'executive.work', '▤'],
-    '/app/peta-kendali/sumber' => ['Sumber penilaian', 'executive.configure', '◇'],
-    '/app/dashboard' => ['Ikhtisar', 'dashboard', '▦'],
-    '/app/pensiun' => ['Pensiun', 'retirement.read', '◷'],
-    '/app/personel' => ['Personel', 'personnel.read', '◎'],
-    '/app/pelatihan' => ['Diklat', 'training.read', '◇'],
-    '/app/peta' => ['Peta fasilitas', 'map', '◉'],
-    '/app/peta-sebaran' => ['Peta sebaran', 'map', '◌'],
-    '/app/mutasi' => ['Mutasi', 'transfers.request', '⇄'],
-    '/app/erm' => ['E-RM dan Rikkes', '@clinical', '✚'],
-    '/app/whatsapp' => ['WhatsApp', 'whatsapp.link', '◈'],
-    '/app/notifikasi' => ['Notifikasi', 'notifications', '◈'],
-    '/app/log' => ['Log aktivitas', 'audit', '▤'],
-    '/app/users' => ['Pengguna', 'users', '☷'],
-    '/app/master' => ['Master data', 'masters', '⊞'],
+    'Ringkasan' => [
+        '/app/dashboard' => ['Ikhtisar', 'dashboard', '▦'],
+        '/app/peta-kendali' => ['Peta Kendali Pimpinan', 'executive.view', '◎'],
+        '/app/peta-kendali/arahan' => ['Arahan', 'executive.work', '▤'],
+        '/app/notifikasi' => ['Notifikasi', 'notifications', '◈'],
+    ],
+    'Kepegawaian' => [
+        '/app/personel' => ['Personel', 'personnel.read', '◉'],
+        '/app/pelatihan' => ['Diklat', 'training.read', '◇'],
+        '/app/pensiun' => ['Pensiun', 'retirement.read', '◷'],
+        '/app/mutasi' => ['Mutasi', 'transfers.request', '⇄'],
+    ],
+    'Fasilitas dan layanan' => [
+        '/app/peta' => ['Peta fasilitas', 'map', '◉'],
+        '/app/peta-sebaran' => ['Peta sebaran', 'map', '◌'],
+        '/app/peta-kendali/sumber' => ['Sumber penilaian', 'executive.configure', '◇'],
+        '/app/erm' => ['E-RM dan Rikkes', '@clinical', '✚'],
+        '/app/whatsapp' => ['WhatsApp', 'whatsapp.link', '◈'],
+    ],
+    'Administrasi' => [
+        '/app/log' => ['Log aktivitas', 'audit', '▤'],
+        '/app/users' => ['Pengguna', 'users', '☷'],
+        '/app/master' => ['Master data', 'masters', '⊞'],
+    ],
 ];
 
-function page(string $title, callable $content, ?array $user = null, string $section = '', string $subtitle = ''): void
+function navigationGroups(array $user): array
 {
+    $visible = [];
+    foreach (NAVIGATION as $group=>$entries) {
+        foreach ($entries as $path=>[$label,$permission,$symbol]) {
+            $allowed = $permission === '@clinical' ? ($user['clinical_menu'] ?? false) : can($user,$permission);
+            if ($allowed) {
+                $visible[$group][$path] = [$path === '/app/dashboard' && isset($user['operator_facility']) ? 'Input Fasilitas' : $label,$symbol];
+            }
+        }
+    }
+    return $visible;
+}
+
+function appBrand(): void
+{
+    echo '<span class="brand-symbol" aria-hidden="true">+</span><span class="brand-word">BINPROFKES<small>KESEHATAN TNI AU</small></span>';
+}
+
+function page(string $title, callable $content, ?array $user = null, string $section = '', string $subtitle = '', bool $showHeader = true): void
+{
+    $groups = $user ? navigationGroups($user) : [];
+    $activeGroup = '';
+    foreach ($groups as $group=>$entries) {
+        if (isset($entries[$section])) {
+            $activeGroup = $group;
+            break;
+        }
+    }
     $flash = $_SESSION['flash'] ?? null;
     unset($_SESSION['flash']);
     ob_start();
@@ -33,7 +68,7 @@ function page(string $title, callable $content, ?array $user = null, string $sec
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <title><?= e($title) ?> · BINPROFKES</title>
-        <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css">
+        <?php if ($user): ?><link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css"><?php endif; ?>
         <link rel="stylesheet" href="/assets/css/app.css">
         <script type="module" src="/assets/js/app.js"></script>
     </head>
@@ -41,31 +76,40 @@ function page(string $title, callable $content, ?array $user = null, string $sec
     <a class="skip" href="#content">Ke konten utama</a>
     <?php if ($user): ?>
         <details class="navigation" open>
-            <summary>Menu navigasi</summary>
+            <summary>
+                <span class="brand"><?php appBrand(); ?></span>
+                <span class="menu-control">Menu <span class="menu-chevron" aria-hidden="true"></span></span>
+            </summary>
             <div class="navigation-inner">
-                <div class="brand"><span class="brand-symbol" aria-hidden="true">＋</span><div>BINPROFKES<small>KESEHATAN TNI AU</small></div></div>
-                <nav aria-label="Menu utama">
-                    <?php foreach (NAVIGATION as $path => [$label, $permission, $symbol]):
-                        if ($permission === '@clinical' ? ($user['clinical_menu'] ?? false) : can($user, $permission)): ?>
-                            <a href="<?= e(url($path)) ?>" <?= $section === $path ? 'aria-current="page"' : '' ?>>
-                                <span aria-hidden="true"><?= e($symbol) ?></span><?= e($label) ?>
-                            </a>
-                        <?php endif;
-                    endforeach; ?>
+                <a class="brand navigation-brand" href="<?= e(url(homeFor($user))) ?>"><?php appBrand(); ?></a>
+                <nav class="navigation-menu" aria-label="Menu utama">
+                    <?php foreach ($groups as $group=>$entries): ?>
+                        <div class="navigation-group">
+                            <p><?= e($group) ?></p>
+                            <?php foreach ($entries as $path=>[$label,$symbol]): ?>
+                                <a href="<?= e(url($path)) ?>" <?= $section === $path ? 'aria-current="page"' : '' ?>>
+                                    <span class="nav-icon" aria-hidden="true"><?= e($symbol) ?></span><?= e($label) ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endforeach; ?>
                 </nav>
                 <div class="session-panel">
-                    <strong><?= e($user['name']) ?></strong><small><?= e($user['role_name']) ?></small>
+                    <div class="session-identity"><strong><?= e($user['name']) ?></strong><small><?= e($user['role_name']) ?></small></div>
                     <?php postButton('/logout', 'Keluar', class: 'signout'); ?>
                 </div>
             </div>
         </details>
     <?php endif; ?>
-    <main id="content">
-        <?php if ($user): ?>
+    <main id="content" tabindex="-1">
+        <?php if ($user && $showHeader): ?>
             <header class="page-header">
-                <p class="breadcrumb">BINPROFKES <span aria-hidden="true">/</span> <?= e(NAVIGATION[$section][0] ?? $title) ?></p>
+                <?php if ($activeGroup !== ''): ?><p class="breadcrumb"><?= e($activeGroup) ?></p><?php endif; ?>
                 <h1><?= e($title) ?></h1>
                 <?php if ($subtitle !== ''): ?><p><?= e($subtitle) ?></p><?php endif; ?>
+                <?php if ($section !== '/app/dashboard' && isset($user['operator_facility'])): ?>
+                    <p class="page-workplace"><?= e($user['operator_facility']['name']) ?></p>
+                <?php endif; ?>
             </header>
         <?php endif; ?>
         <?php if ($flash): ?><p class="flash" role="status"><?= e($flash) ?></p><?php endif; ?>
@@ -190,24 +234,33 @@ function paginate(string $path, int $total, int $current, int $per): void
     echo '</nav>';
 }
 
-function loginView(bool $setup = false): void
+function loginView(bool $setup = false, string $email = '', ?string $feedback = null): void
 {
-    page($setup ? 'Instalasi' : 'Masuk', static function () use ($setup): void {
+    page($setup ? 'Instalasi' : 'Masuk', static function () use ($setup,$email,$feedback): void {
         ?>
         <div class="login-frame">
             <div class="login-identity">
-                <div class="brand"><span class="brand-symbol" aria-hidden="true">＋</span><div>BINPROFKES<small>KESEHATAN TNI AU</small></div></div>
-                <p>Sistem Informasi Bina Profesional Kesehatan TNI AU</p>
-                <div class="orb" data-orb aria-hidden="true"></div>
+                <div class="brand"><?php appBrand(); ?></div>
+                <p>Bina Profesional<br>Kesehatan TNI AU</p>
             </div>
             <section class="login-card" aria-labelledby="login-heading">
                 <h1 id="login-heading"><?= $setup ? 'Buat akun pengelola' : 'Masuk ke BINPROFKES' ?></h1>
-                <p><?= $setup ? 'Gunakan token instalasi yang disimpan oleh pengelola.' : 'Gunakan email dan kata sandi akun Anda.' ?></p>
+                <p><?= $setup ? 'Siapkan token instalasi untuk melanjutkan.' : 'Gunakan email dan kata sandi akun Anda.' ?></p>
+                <?php if ($feedback !== null): ?>
+                    <div class="login-feedback" role="alert" tabindex="-1" data-login-feedback><?= e($feedback) ?></div>
+                <?php endif; ?>
                 <?php postStart($setup ? '/setup' : '/login'); ?>
                 <?php if ($setup): input('name', 'Nama', required: true); endif; ?>
-                <label>Email<input name="email" type="email" maxlength="254" autocomplete="username" required></label>
-                <label>Kata sandi<input name="password" type="password" maxlength="72"
-                    autocomplete="<?= $setup ? 'new-password' : 'current-password' ?>" required></label>
+                <label>Email<input name="email" type="email" value="<?= e($email) ?>" maxlength="254" autocomplete="username" required></label>
+                <div class="password-control">
+                    <label for="login-password">Kata sandi</label>
+                    <div class="password-entry">
+                        <input id="login-password" name="password" type="password" maxlength="72"
+                            autocomplete="<?= $setup ? 'new-password' : 'current-password' ?>" required>
+                        <button type="button" class="password-toggle" aria-controls="login-password" aria-label="Tampilkan kata sandi"
+                            aria-pressed="false" hidden data-password-toggle>Tampilkan</button>
+                    </div>
+                </div>
                 <?php if ($setup): ?>
                     <label>Token instalasi<input name="token" type="password" maxlength="128" autocomplete="off" required></label>
                 <?php endif; ?>

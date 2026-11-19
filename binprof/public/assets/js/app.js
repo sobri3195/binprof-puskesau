@@ -1,6 +1,31 @@
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const navigation = document.querySelector(".navigation");
-if (navigation && matchMedia("(max-width: 780px)").matches) navigation.open = false;
+if (navigation) {
+    const compact = matchMedia("(max-width: 900px)");
+    const adaptMenu = () => { navigation.open = !compact.matches; };
+    adaptMenu();
+    compact.addEventListener("change",adaptMenu);
+    navigation.addEventListener("keydown",event => {
+        if (event.key === "Escape" && compact.matches && navigation.open) {
+            event.preventDefault();
+            navigation.open = false;
+            navigation.querySelector("summary").focus();
+        }
+    });
+    const active = navigation.querySelector("[aria-current=page]");
+    if (!compact.matches) active?.scrollIntoView({block:"nearest"});
+}
+for (const control of document.querySelectorAll("[data-password-toggle]")) {
+    const password = document.getElementById(control.getAttribute("aria-controls"));
+    control.hidden = false;
+    control.addEventListener("click",() => {
+        const reveal = password.type === "password";
+        password.type = reveal ? "text" : "password";
+        control.setAttribute("aria-pressed",String(reveal));
+        control.textContent = reveal ? "Sembunyikan" : "Tampilkan";
+    });
+}
+document.querySelector("[data-login-feedback]")?.focus();
 
 function loadScript(path) {
     return new Promise((resolve, reject) => {
@@ -19,9 +44,9 @@ async function readJson(path) {
 }
 
 function facilityDescription(row) {
-    return [row.name, row.kind, row.unit, row.command_name, row.total + " personel aktif",
-        row.doctors + " dokter", row.dentists + " dokter gigi", row.nurses + " perawat"]
-        .filter(Boolean).join(" · ");
+    const count = (value,label) => value == null ? "" : value + " " + label;
+    return [row.name,row.kind,row.unit,row.command_name,count(row.total,"personel aktif") || "Data personel belum tersedia",
+        count(row.doctors,"dokter"),count(row.dentists,"dokter gigi"),count(row.nurses,"perawat")].filter(Boolean).join(" · ");
 }
 
 async function enableMap(panel) {
@@ -43,7 +68,7 @@ async function enableMap(panel) {
         loadScript("/assets/vendor/leaflet/leaflet.js")
     ]);
     flat.hidden = false;
-    const map = window.L.map(flat, { scrollWheelZoom: false, attributionControl: true });
+    const map = window.L.map(flat, { scrollWheelZoom: false, attributionControl: true }).setView([-2.4,118],4);
     map.attributionControl.addAttribution("Natural Earth 1:110m");
     window.L.geoJSON(land, {
         interactive: false, style: { color: "#7799a9", weight: 1, fillColor: "#c0d8cd", fillOpacity: 1 }
@@ -141,28 +166,6 @@ async function enableMap(panel) {
     }, { once: true });
 }
 
-const charts = [...document.querySelectorAll("[data-chart]")];
-if (charts.length) {
-    loadScript("/assets/vendor/chartjs/chart.umd.js").then(() => {
-        for (const container of charts) {
-            const rows = JSON.parse(container.dataset.chart);
-            container.hidden = false;
-            new window.Chart(container.querySelector("canvas"), {
-                type: "bar",
-                data: {
-                    labels: rows.map(row => row.name),
-                    datasets: [{ data: rows.map(row => Number(row.total)), backgroundColor: "#237991", borderRadius: 4 }]
-                },
-                options: {
-                    indexAxis: "y", animation: false, responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
-                }
-            });
-        }
-    }).catch(() => {});
-}
-
 for (const panel of document.querySelectorAll("[data-map-panel]")) {
     const observer = new IntersectionObserver(entries => {
         if (!entries.some(entry => entry.isIntersecting)) return;
@@ -172,14 +175,4 @@ for (const panel of document.querySelectorAll("[data-map-panel]")) {
         });
     }, { rootMargin: "120px" });
     observer.observe(panel);
-}
-
-const orb = document.querySelector("[data-orb]");
-if (orb && getComputedStyle(orb).display !== "none") {
-    const start = () => import("./globe.js").then(({ createGlobe }) => {
-        const globe = createGlobe(orb, [], null, true);
-        window.addEventListener("pagehide", event => { if (!event.persisted) globe.dispose(); }, { once: true });
-    }).catch(() => {});
-    if ("requestIdleCallback" in window) window.requestIdleCallback(start, { timeout: 1200 });
-    else window.setTimeout(start, 50);
 }

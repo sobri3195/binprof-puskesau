@@ -50,58 +50,131 @@ function dashboard(array $user): void
     $workplace = $user['operator_facility'] ?? null;
     page($workplace ? 'Input Fasilitas' : 'Ikhtisar',
         static function () use ($user,$counts,$ranks,$units,$facilities,$reminders,$retirement,$workplace): void {
-        if ($workplace) {
-            echo '<section class="hero"><div><h2>' . e($workplace['name']) . '</h2><p>'
-                . e($workplace['type'] . ' · ' . $workplace['unit']) . '</p></div><div class="actions">';
-            linkButton('/app/personel/edit','Tambah personel');
-            linkButton('/app/pelatihan/edit','Catat diklat');
-            linkButton('/app/personel','Sertifikat dan dokumen personel');
-            linkButton('/app/peta','Laporkan kejadian');
-            linkButton('/app/peta-kendali/arahan','Arahan untuk saya');
-            echo '</div></section>';
-        } else {
-            echo '<section class="hero"><div><h2>Tenaga kesehatan</h2><p>Ringkasan personel aktif dan fasilitas dalam cakupan Anda.</p></div>';
-            linkButton('/app/peta', 'Lihat peta fasilitas');
-            echo '</section>';
-        }
-        echo '<div class="stats">';
-        foreach (['active'=>'Personel aktif','doctors'=>'Dokter','dentists'=>'Dokter gigi','nurses'=>'Perawat','specialists'=>'Dokter spesialis'] as $key=>$label) {
-            echo '<div><span>' . e($label) . '</span><strong>' . e($counts[$key] ?? 0) . '</strong></div>';
-        }
-        echo '</div><p class="subtle compact-note">Dokter spesialis termasuk dalam jumlah dokter.</p><div class="dashboard-grid">';
-        distribution('Distribusi pangkat', $ranks);
-        distribution('Lima satuan teratas', $units);
-        echo '</div><div class="dashboard-grid"><section class="surface"><div class="section-heading"><h2>Fasilitas aktif</h2><strong class="total">'
-            . e($facilities) . '</strong></div>';
-        mapsPanel();
-        echo '</section>';
-        if ($reminders !== []) {
-            echo '<section class="surface"><h2>Dalam 90 hari</h2>';
-            foreach ($reminders as $label=>$value) {
-                echo '<p class="reminder"><span>' . e($label) . '</span><strong>' . e($value) . '</strong></p>';
-            }
-            echo '</section>';
-        }
-        if ($retirement !== null) {
-            echo '<section class="surface"><h2>Pensiun dalam 12 bulan</h2>';
-            foreach (['planned'=>'Perkiraan tercatat','scheduled'=>'Keputusan resmi menunggu penerapan','followup'=>'Perlu tindak lanjut'] as $key=>$label) {
-                echo '<p class="reminder"><span>' . e($label) . '</span><strong>' . e($retirement[$key] ?? 'Belum tersedia') . '</strong></p>';
-            }
-            if (can($user,'retirement.read')) {
-                linkButton(RETIREMENT,'Buka daftar pensiun',['group'=>'near','months'=>12]);
-            }
-            echo '</section>';
-        }
-        echo '</div>';
-    }, $user, '/app/dashboard', 'Sistem Informasi Bina Profesional Kesehatan TNI AU');
+            ?>
+            <section class="hero overview-hero">
+                <div>
+                    <?php if ($workplace): ?><p class="overview-scope"><?= e($workplace['type'] . ' · ' . $workplace['unit']) ?></p><?php endif; ?>
+                    <h2><?= e($workplace['name'] ?? 'Ringkasan tenaga kesehatan') ?></h2>
+                    <?php if (!$workplace): ?><p>Personel aktif, fasilitas, dan tindak lanjut dalam cakupan Anda.</p><?php endif; ?>
+                </div>
+                <div class="actions">
+                    <?php
+                    if ($workplace && can($user,'personnel.write')) {
+                        linkButton('/app/personel/edit','Tambah personel',class:'hero-primary');
+                    } elseif (can($user,'map')) {
+                        linkButton('/app/peta','Lihat peta fasilitas',class:'hero-primary');
+                    }
+                    ?>
+                </div>
+            </section>
+            <?php dashboardShortcuts($user,(bool) $workplace); ?>
+            <section class="overview-roster" aria-labelledby="overview-roster">
+                <h2 id="overview-roster">Komposisi tenaga aktif</h2>
+                <div class="stats overview-stats">
+                    <?php foreach (['active'=>'Personel aktif','doctors'=>'Dokter','dentists'=>'Dokter gigi','nurses'=>'Perawat','specialists'=>'Dokter spesialis'] as $key=>$label): ?>
+                        <div<?= $key==='active' ? ' class="stat-primary"' : '' ?>>
+                            <span><?= e($label) ?></span><strong><?= e($counts[$key] ?? 0) ?></strong>
+                            <?php if ($key==='specialists'): ?><small>Termasuk dalam jumlah dokter</small><?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+            <div class="overview-workbench">
+                <section class="surface overview-map">
+                    <div class="section-heading"><h2>Sebaran fasilitas</h2><span class="scope-count"><?= e($facilities) ?> fasilitas aktif</span></div>
+                    <?php mapsPanel(); ?>
+                </section>
+                <?php if ($reminders || $retirement !== null): ?>
+                    <aside class="overview-followup" aria-label="Tindak lanjut">
+                        <?php if ($reminders): ?>
+                            <section class="surface"><div class="section-heading"><h2>Perlu ditinjau</h2><span class="subtle">90 hari ke depan</span></div>
+                                <?php foreach ($reminders as $label=>$amount):
+                                    $promotion = $label==='Kenaikan pangkat'; ?>
+                                    <a class="overview-reminder" href="<?= e($promotion ? url('/app/personel',['promotion'=>1,'state'=>'active']) :
+                                        url('/app/pelatihan',['certificate'=>'soon','active_personnel'=>1])) ?>">
+                                        <span><?= e($label) ?></span><strong><?= e($amount) ?></strong><span aria-hidden="true">›</span>
+                                    </a>
+                                <?php endforeach; ?>
+                            </section>
+                        <?php endif; ?>
+                        <?php if ($retirement !== null): ?>
+                            <section class="surface">
+                                <h2>Pensiun dalam 12 bulan</h2>
+                                <?php foreach (['planned'=>'Perkiraan tercatat','scheduled'=>'Keputusan resmi menunggu penerapan',
+                                    'followup'=>'Perlu tindak lanjut'] as $key=>$label): ?>
+                                    <p class="reminder"><span><?= e($label) ?></span><strong><?= e($retirement[$key] ?? 'Belum tersedia') ?></strong></p>
+                                <?php endforeach; ?>
+                                <?php if (can($user,'retirement.read')) {
+                                    linkButton(RETIREMENT,'Buka daftar pensiun',['group'=>'near','months'=>12]);
+                                } ?>
+                            </section>
+                        <?php endif; ?>
+                    </aside>
+                <?php endif; ?>
+            </div>
+            <div class="dashboard-grid">
+                <?php
+                distribution('Distribusi pangkat',$ranks);
+                if (!$workplace) {
+                    distribution('Satuan dengan personel terbanyak',$units);
+                }
+                ?>
+            </div>
+            <?php
+        },$user,'/app/dashboard');
 }
 
-function distribution(string $title, array $rows): void
+function dashboardShortcuts(array $user,bool $facility): void
 {
-    echo '<section class="surface"><h2>' . e($title) . '</h2>';
-    if ($rows) {
-        echo '<div class="chart" data-chart="' . e(json_encode(array_slice($rows, 0, 12), JSON_THROW_ON_ERROR)) . '" hidden><canvas aria-hidden="true"></canvas></div>';
+    $entries = $facility ? [
+        ['/app/pelatihan/edit','training.write','Catat diklat','Pilih peserta dan catat kegiatan.','◇'],
+        ['/app/personel','personnel.read','Dokumen personel','Buka sertifikat, Petikan, dan catatan peserta.','▤'],
+        ['/app/peta','map.report','Laporkan kejadian','Kirim laporan untuk fasilitas Anda.','◉'],
+        ['/app/peta-kendali/arahan','executive.work','Arahan untuk saya','Tinjau dan perbarui tugas Anda.','◈'],
+    ] : [
+        ['/app/personel','personnel.read','Daftar personel','Cari personel dan buka profil.','◉'],
+        ['/app/pelatihan','training.read','Diklat','Lihat kegiatan dan masa berlaku sertifikat.','◇'],
+        ['/app/pensiun','retirement.read','Pensiun','Tinjau jadwal dan status pengajuan.','◷'],
+    ];
+    $visible = array_filter($entries,static fn(array $entry): bool => can($user,$entry[1]));
+    if (!$visible) {
+        return;
     }
-    table(['Kelompok','Jumlah'], $rows, static fn (array $row) => td($row['name'],$row['total']));
+    ?>
+    <section class="overview-shortcuts" aria-labelledby="overview-tasks">
+        <h2 id="overview-tasks"><?= $facility ? 'Tugas fasilitas' : 'Akses cepat' ?></h2>
+        <div class="task-grid">
+            <?php foreach ($visible as $index=>[$path,,$name,$detail,$icon]): ?>
+                <a class="task-link" href="<?= e(url($path)) ?>" aria-labelledby="task-title-<?= e($index) ?>" aria-describedby="task-detail-<?= e($index) ?>">
+                    <span class="task-icon" aria-hidden="true"><?= e($icon) ?></span>
+                    <span class="task-text"><strong id="task-title-<?= e($index) ?>"><?= e($name) ?></strong><small id="task-detail-<?= e($index) ?>"><?= e($detail) ?></small></span>
+                    <span class="task-arrow" aria-hidden="true">›</span>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php
+}
+
+function distribution(string $title,array $rows): void
+{
+    echo '<section class="surface overview-distribution"><h2>' . e($title) . '</h2>';
+    if (!$rows) {
+        echo '<p class="empty">Belum ada personel aktif yang tercatat.</p></section>';
+        return;
+    }
+    $maximum = max(1,...array_column($rows,'total'));
+    echo '<ul class="distribution-bars">';
+    foreach (array_slice($rows,0,6) as $row) {
+        $relative = (int) round(100 * $row['total'] / $maximum);
+        echo '<li><div><span>' . e($row['name']) . '</span><strong>' . e($row['total']) . '</strong></div>'
+            . '<span class="distribution-track" aria-hidden="true"><span style="width:' . $relative . '%"></span></span></li>';
+    }
+    echo '</ul>';
+    if (count($rows)>6) {
+        echo '<details class="entry"><summary>Lihat semua kelompok</summary>';
+        table(['Kelompok','Jumlah'],$rows,static fn(array $row) => td($row['name'],$row['total']));
+        echo '</details>';
+    }
     echo '</section>';
 }

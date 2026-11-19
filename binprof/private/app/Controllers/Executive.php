@@ -96,7 +96,7 @@ function executiveSourcePage(array $user): void
     if ($id) {
         executiveFacility($user,$id);
     }
-    page('Sumber penilaian',static fn () => executiveSourceView($user,$facilities,$id),$user,EXECUTIVE);
+    page('Sumber penilaian',static fn () => executiveSourceView($user,$facilities,$id),$user,EXECUTIVE . '/sumber');
 }
 
 function executiveSourceAction(array $user): never

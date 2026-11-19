@@ -4,6 +4,7 @@ declare(strict_types=1);
 const NAVIGATION = [
     '/app/peta-kendali' => ['Peta Kendali Pimpinan', 'executive.view', '◉'],
     '/app/peta-kendali/arahan' => ['Arahan', 'executive.work', '▤'],
+    '/app/peta-kendali/sumber' => ['Sumber penilaian', 'executive.configure', '◇'],
     '/app/dashboard' => ['Ikhtisar', 'dashboard', '▦'],
     '/app/pensiun' => ['Pensiun', 'retirement.read', '◷'],
     '/app/personel' => ['Personel', 'personnel.read', '◎'],

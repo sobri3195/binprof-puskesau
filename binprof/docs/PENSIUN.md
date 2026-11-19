@@ -40,6 +40,8 @@ Super Admin menautkan akun dinas dengan memilih email yang telah diperiksa dan m
 
 Penugasan pascapensiun memerlukan dasar kewenangan dan tanggal akhir. Penugasan memberi Viewer untuk satu satuan atau satu fasilitas. Sesi terdahulu tetap tercabut. Portal menolak akses setelah tanggal akhir meski pekerjaan terjadwal tertunda. Catatan versi dan log audit merekam tahap, aktor, waktu dan ID permintaan.
 
+Setelah migrasi 008, alur jabatan memakai Staf Binprof untuk pengajuan, Kasipa atau Kasibata untuk verifikasi Petikan, Dirbinprof untuk verifikasi dan penerapan, serta Kapuskesau untuk keputusan akhir. Penetapan kewenangan dan cakupan akun dijelaskan dalam [matriks akses](MATRIKS_HAK_AKSES.md#lima-jabatan-binprof).
+
 ## Cron cPanel
 
 Jalankan PHP CLI dengan versi dan ekstensi yang sama seperti web. Di **Cron Jobs**, contoh interval tiap 15 menit dengan path privat:

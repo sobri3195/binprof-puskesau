@@ -1,4 +1,4 @@
-# Matriks hak akses peta
+# Matriks hak akses BINPROFKES
 
 Setiap baris diperiksa di server. Selain izin, fasilitas dan personel harus berada dalam cakupan akun.
 
@@ -53,3 +53,23 @@ Agregat dashboard dan peta memakai `retirement.summary` dan scope organisasi. Op
 ## Peta Kendali Pimpinan
 
 Peran Pimpinan mendapat `executive.home`, `executive.view`, `executive.export`, `executive.issue`, `executive.review`, `executive.verify`, `executive.work`, dan `executive.snapshot`. Peran ini mengikuti scope satuan/fasilitas akun. Super Admin mengelola sumber dan mendapat izin operasional Peta Kendali, dengan Ikhtisar sebagai landing tetap. Unit Admin dapat mengajukan dan memeriksa sumber serta menangani arahan yang ditugaskan. Operator mengerjakan arahan yang secara eksplisit ditugaskan. Matriks tugas dan verifikasi dijelaskan di [panduan Peta Kendali](PETA_KENDALI.md).
+
+## Lima jabatan Binprof
+
+Setelah migrasi `008_binprof_position_roles.sql`, Super Admin membuka **Pengguna**, memilih jabatan, dan menentukan satuan atau fasilitas. Setiap akun jabatan aktif memerlukan setidaknya satu cakupan. Untuk akses hanya ke fasilitas tertentu, pilih fasilitas saja. Pemilihan satuan mencakup semua fasilitas dan personel dalam satuan itu. Dua pilihan digabungkan bila keduanya diisi. Perubahan peran atau cakupan mencabut sesi lama.
+
+| Tindakan dalam cakupan | Kapuskesau | Dirbinprof | Kasipa | Kasibata | Staf Binprof |
+| --- | --- | --- | --- | --- | --- |
+| Ikhtisar, peta, baca profil/diklat/pensiun, notifikasi | Ya | Ya | Ya | Ya | Ya |
+| Peta Kendali sebagai halaman awal, laporan agregat, terbitkan dan tinjau arahan | Ya | Ya | — | — | — |
+| Kerjakan arahan yang ditugaskan | Ya | Ya | Ya | Ya | Ya |
+| Kelola personel dan diklat, catat dokumen administratif, ajukan mutasi dan pensiun | — | — | Ya | Ya | Ya |
+| Verifikasi Petikan, sertifikat, Ijazah, Dikmil dan Dikum | — | — | Ya | Ya | — |
+| Ajukan target, aturan dan pemeriksaan roster melalui Sumber penilaian | — | — | Ya | Ya | — |
+| Verifikasi sumber penilaian dan gangguan | — | Ya | — | — | — |
+| Verifikasi pengajuan pensiun dan terapkan keputusan jatuh tempo | — | Ya | — | — | — |
+| Persetujuan akhir pensiun serta pengembalian atau pembatalan sesuai tahap | Ya | — | — | — | — |
+
+Kasipa dan Kasibata mendapat kewenangan setingkat. Pembagian bidang kerja ditetapkan melalui cakupan akun. Dalam alur pensiun, Staf Binprof dapat menyiapkan pengajuan, Kasipa atau Kasibata memverifikasi Petikan, Dirbinprof memverifikasi pengajuan, lalu Kapuskesau menyetujui atau mengembalikan untuk perbaikan. Server tetap memeriksa pemisahan pengaju, pemeriksa dan pemberi persetujuan.
+
+Kontak dan NIK memerlukan `personnel.identity`, yang belum diberikan kepada lima jabatan baru. Hak Kasus dan klinis memerlukan penetapan tersendiri. Pengelolaan akun, master, serta persetujuan dan pemrosesan mutasi tetap memakai peran Super Admin. Akun lama dapat diubah satu per satu lewat menu **Pengguna**.

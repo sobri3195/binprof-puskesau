@@ -22,6 +22,19 @@ function retirementRequire(array $user,string $operation = 'read'): void
     }
 }
 
+function retirementCanDecide(array $user,string $action,string $state): bool
+{
+    return match ($action) {
+        'submit'=>can($user,'retirement.write'),
+        'verify'=>can($user,'retirement.verify'),
+        'approve'=>can($user,'retirement.approve'),
+        'return'=>($state!=='approved' && can($user,'retirement.verify'))
+            || (in_array($state,['verified','approved'],true) && can($user,'retirement.approve')),
+        'cancel'=>in_array($state,['draft','returned'],true) ? can($user,'retirement.write') : can($user,'retirement.approve'),
+        default=>false,
+    };
+}
+
 function retirementMonths(string $date,int $months): string
 {
     $original = new DateTimeImmutable($date,new DateTimeZone('UTC'));

@@ -191,8 +191,11 @@ function retirementTransition(array $user,string $personnel,string $id,string $a
         $staff = person($user,$personnel,true);
         retirementCheckPerson($staff);
         $row = retirementRow($personnel,$id,true) ?? fail(404,'Catatan pensiun tidak ditemukan.');
-        $version = retirementVersion($row);
         $state = $row['state'];
+        if (!retirementCanDecide($user,$action,$state)) {
+            fail(403,'Akses untuk keputusan pensiun pada tahap ini tidak tersedia.');
+        }
+        $version = retirementVersion($row);
         $reason = field($_POST,'reason',250,in_array($action,['return','cancel'],true));
         $actor = $user['id'];
         $extra = '';
@@ -219,15 +222,9 @@ function retirementTransition(array $user,string $personnel,string $id,string $a
             $extra = ',approved_by=?,approved_at=UTC_TIMESTAMP()';
             $args = [$actor];
         } elseif ($action==='return' && in_array($state,['submitted','verified','approved'],true)) {
-            if ($state==='approved' && !can($user,'retirement.approve')) {
-                fail(403,'Pengembalian keputusan disetujui memerlukan izin persetujuan.');
-            }
             $next = 'returned';
             $extra = ',verified_by=NULL,verified_at=NULL,approved_by=NULL,approved_at=NULL,effective_on=NULL,decree_version=NULL';
         } elseif ($action==='cancel' && !in_array($state,['effective','cancelled'],true)) {
-            if (!in_array($state,['draft','returned'],true) && !can($user,'retirement.approve')) {
-                fail(403,'Pembatalan setelah diajukan memerlukan izin persetujuan.');
-            }
             $next = 'cancelled';
             $extra = ',active_slot=NULL';
         } else {

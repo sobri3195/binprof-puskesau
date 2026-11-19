@@ -122,6 +122,8 @@ function masterSave(array $user): never
     done('Master disimpan.', '/app/master', ['kind'=>$kind]);
 }
 
+const BINPROF_POSITION_ROLES = ['kapuskesau','dirbinprof','kasipa','kasibata','staf_binprof'];
+
 function userIndex(array $actor): void
 {
     $roles = qu('SELECT code,name FROM roles ORDER BY name')->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -155,6 +157,10 @@ function userIndex(array $actor): void
             selectField('revoke', 'Cabut sesi secara manual', [0=>'Tidak',1=>'Ya'], 0);
         }
         echo '</div>';
+        if (array_intersect(BINPROF_POSITION_ROLES,array_keys($roles))) {
+            echo '<p>Untuk akun aktif Kapuskesau, Dirbinprof, Kasipa, Kasibata, dan Staf Binprof, pilih minimal satu satuan atau fasilitas.';
+            echo ' Satuan memberi akses ke fasilitas dan personel dalam satuan tersebut.</p>';
+        }
         scopeFields('units', 'Satuan', optionsFor('units', activeOnly: false), $units);
         scopeFields('facilities', 'Fasilitas', optionsFor('facilities', activeOnly: false), $facilities);
         echo '<p>Super Admin memiliki cakupan administratif global. Pengguna lain mendapatkan cakupan dari pilihan di atas.</p>';
@@ -207,6 +213,9 @@ function userSave(array $actor): never
     $hash = $password !== '' || !$id ? passwordHash($password) : null;
     $units = submittedScope('units');
     $facilities = submittedScope('facilities');
+    if ($active && in_array($role,BINPROF_POSITION_ROLES,true) && !$units && !$facilities) {
+        fail(422,'Pilih minimal satu satuan atau fasilitas untuk akun jabatan yang aktif.');
+    }
     saveUnique(static function () use ($actor, $id, $name, $email, $role, $active, $revoke, $hash, $units, $facilities): void {
         tx(static function () use ($actor, $id, $name, $email, $role, $active, $revoke, $hash, $units, $facilities): void {
             qu('SELECT id FROM application_state WHERE id=1 FOR UPDATE');

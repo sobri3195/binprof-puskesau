@@ -167,10 +167,10 @@ function retirementWorkflowControls(array $user,array $staff,array $row,bool $wr
         postButton(RETIREMENT . '/process','Terapkan jika jatuh tempo',$hid);
     }
     echo '</div>';
-    if ($verify && (in_array($state,['submitted','verified'],true) || ($state==='approved' && $approve))) {
+    if (in_array($state,['submitted','verified','approved'],true) && retirementCanDecide($user,'return',$state)) {
         retirementReasonForm($hid,'return','Kembalikan untuk perbaikan');
     }
-    if ($writable && ($editable || ($approve && !in_array($state,['effective','cancelled'],true)))) {
+    if (!in_array($state,['effective','cancelled'],true) && retirementCanDecide($user,'cancel',$state)) {
         retirementReasonForm($hid,'cancel','Batalkan pengajuan');
     }
 }

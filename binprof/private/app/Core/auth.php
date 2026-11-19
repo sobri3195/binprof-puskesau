@@ -93,16 +93,22 @@ function attemptLogin(): never
         audit($id, 'login', 'session');
     });
     $_SESSION = ['handle' => $handle];
-    redirect('/app/dashboard');
+    $account = qu('SELECT id,role_code FROM users WHERE id=?',[$id])->fetch();
+    redirect(homeFor(withPermissions($account)));
 }
 
-function currentUser(): ?array
+function homeFor(array $user): string
+{
+    return can($user,'executive.home') ? '/app/peta-kendali' : '/app/dashboard';
+}
+
+function currentUser(bool $touch = true): ?array
 {
     if (!isset($_SESSION['handle'])) {
         return null;
     }
     $key = hash('sha256', $_SESSION['handle'], true);
-    $user = qu('SELECT u.id,u.name,u.role_code,r.name AS role_name FROM auth_sessions s JOIN users u ON u.id=s.user_id
+    $user = qu('SELECT u.id,u.name,u.role_code,r.name AS role_name,s.created_at AS session_started,s.last_seen_at AS session_seen FROM auth_sessions s JOIN users u ON u.id=s.user_id
         JOIN roles r ON r.code=u.role_code WHERE s.handle_hash=? AND u.active=1 AND s.revoked_at IS NULL
         AND s.session_version=u.session_version AND s.last_seen_at > TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP())
         AND s.created_at > TIMESTAMPADD(SECOND,?,UTC_TIMESTAMP())',
@@ -111,7 +117,14 @@ function currentUser(): ?array
         unset($_SESSION['handle'], $_SESSION['csrf']);
         return null;
     }
-    qu('UPDATE auth_sessions SET last_seen_at=UTC_TIMESTAMP() WHERE handle_hash=?', [$key]);
+    $now = time();
+    if ($touch) {
+        qu('UPDATE auth_sessions SET last_seen_at=UTC_TIMESTAMP() WHERE handle_hash=?', [$key]);
+    }
+    $seen = $touch ? $now : strtotime($user['session_seen'] . ' UTC');
+    $user['expires_at'] = min($seen+(int) (cfg('idle_seconds') ?? 1800),
+        strtotime($user['session_started'] . ' UTC')+(int) (cfg('absolute_seconds') ?? 28800));
+    unset($user['session_started'],$user['session_seen']);
     return withPermissions($user);
 }
 

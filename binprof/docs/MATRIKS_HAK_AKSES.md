@@ -49,3 +49,7 @@ Hak Kasus diberikan secara eksplisit lewat CLI privat. Tanpa izin baca, tab dan 
 ## Pensiun/Purnawirawan
 
 Agregat dashboard dan peta memakai `retirement.summary` dan scope organisasi. Operator, Unit Admin, serta Super Admin memiliki `retirement.read` dan `retirement.write`. `retirement.verify` tersedia bagi Unit Admin dan Super Admin. `retirement.approve`, `retirement.apply`, `retirement.manage`, dan `retirement.account` diberikan pada Super Admin. Dokumen SK tetap membutuhkan izin unduh Petikan. Ketentuan dokumen, pemisahan pejabat, dan penugasan terbatas dijelaskan di [panduan Pensiun](PENSIUN.md).
+
+## Peta Kendali Pimpinan
+
+Peran Pimpinan mendapat `executive.home`, `executive.view`, `executive.export`, `executive.issue`, `executive.review`, `executive.verify`, `executive.work`, dan `executive.snapshot`. Peran ini mengikuti scope satuan/fasilitas akun. Super Admin mengelola sumber dan mendapat izin operasional Peta Kendali, dengan Ikhtisar sebagai landing tetap. Unit Admin dapat mengajukan dan memeriksa sumber serta menangani arahan yang ditugaskan. Operator mengerjakan arahan yang secara eksplisit ditugaskan. Matriks tugas dan verifikasi dijelaskan di [panduan Peta Kendali](PETA_KENDALI.md).

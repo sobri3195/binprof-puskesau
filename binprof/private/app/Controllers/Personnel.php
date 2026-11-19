@@ -24,7 +24,7 @@ function personnelQuery(array $user): array
         $where[] = '(LOCATE(?,p.name)>0 OR LOCATE(?,p.nrp)>0)';
         array_push($params, $q, $q);
     }
-    foreach (['unit_id' => 'p.unit_id', 'profession_id' => 'p.profession_id'] as $name => $column) {
+    foreach (['unit_id' => 'p.unit_id', 'facility_id'=>'p.facility_id', 'profession_id' => 'p.profession_id'] as $name => $column) {
         if (($value = number($_GET, $name)) !== null) {
             $where[] = "$column=?";
             $params[] = $value;
@@ -98,6 +98,7 @@ function personnelIndex(array $user): void
         }
         input('q', 'Nama atau NRP', $_GET['q'] ?? '', max: 100);
         selectField('unit_id', 'Satuan', optionsFor('units', $user, false), $_GET['unit_id'] ?? '', 'Semua');
+        selectField('facility_id','Fasilitas',optionsFor('facilities',$user,false),$_GET['facility_id'] ?? '','Semua');
         selectField('profession_id', 'Profesi', optionsFor('professions', activeOnly: false), $_GET['profession_id'] ?? '', 'Semua');
         selectField('rank_group', 'Kelompok pangkat', array_combine($groups, $groups), $_GET['rank_group'] ?? '', 'Semua');
         selectField('specialty_id', 'Spesialisasi', optionsFor('specialties', activeOnly: false), $_GET['specialty_id'] ?? '', 'Semua');
@@ -209,15 +210,6 @@ function personnelDetail(array $user): void
         }
         echo '</section>';
     }, $user, PERSONNEL);
-}
-
-function definition(array $values): void
-{
-    echo '<dl class="definitions">';
-    foreach ($values as $name => $value) {
-        echo '<div><dt>' . e($name) . '</dt><dd>' . e($value === null || $value === '' ? '—' : $value) . '</dd></div>';
-    }
-    echo '</dl>';
 }
 
 function personnelForm(array $user): void

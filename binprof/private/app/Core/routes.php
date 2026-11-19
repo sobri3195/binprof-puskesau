@@ -1,5 +1,18 @@
 <?php
 return [
+    'GET /app/peta-kendali' => ['executive.view', 'Executive', 'executivePage'],
+    'GET /api/executive/data' => ['executive.view', 'Executive', 'executiveData'],
+    'GET /app/peta-kendali/pdf' => ['executive.export', 'Executive', 'executivePdf'],
+    'POST /api/executive/preset' => ['executive.view', 'Executive', 'executivePreset'],
+    'POST /app/peta-kendali/snapshot' => ['executive.snapshot', 'Executive', 'executiveSnapshot'],
+    'GET /app/peta-kendali/sumber' => ['executive.work', 'Executive', 'executiveSourcePage'],
+    'POST /app/peta-kendali/sumber' => ['executive.work', 'Executive', 'executiveSourceAction'],
+    'GET /app/peta-kendali/arahan' => ['executive.work', 'Executive', 'executiveWorkPage'],
+    'POST /app/peta-kendali/arahan/save' => ['executive.issue', 'Executive', 'executiveWorkSave'],
+    'POST /app/peta-kendali/arahan/action' => ['executive.work', 'Executive', 'executiveWorkAction'],
+    'POST /app/peta-kendali/arahan/upload' => ['executive.work', 'Executive', 'executiveWorkUpload'],
+    'GET /app/peta-kendali/arahan/file' => ['executive.work', 'Executive', 'executiveWorkDownload'],
+
     'GET /app/pensiun' => ['retirement.read', 'Retirement', 'retirementList'],
     'GET /app/pensiun/master' => ['retirement.manage', 'Retirement', 'retirementMaster'],
     'POST /app/pensiun/master/rule' => ['retirement.manage', 'Retirement', 'retirementRuleSave'],

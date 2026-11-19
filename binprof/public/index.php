@@ -108,6 +108,12 @@ try {
     }
     $message = $error instanceof HttpError ? $error->getMessage() : 'Permintaan tidak dapat diproses.';
     http_response_code($status);
+    if ($route === '/login' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && !$user && in_array($status,[401,429],true)) {
+        $entered = $_POST['email'] ?? '';
+        $email = is_string($entered) && mb_check_encoding($entered,'UTF-8') ? mb_substr($entered,0,254) : '';
+        loginView(email:$email,feedback:$message);
+        exit;
+    }
     if (str_starts_with($route, '/api/') || $route === '/webhooks/whatsapp') {
         jsonResponse(['error' => $message, 'request_id' => REQUEST_ID]);
     }

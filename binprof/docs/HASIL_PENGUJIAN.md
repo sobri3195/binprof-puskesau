@@ -139,3 +139,15 @@ Migrasi 009 diuji setelah 008 pada database sintetis MariaDB 10.11 dengan PHP 8.
 | Formulir mobile | Lulus pada Chromium 390 px. Halaman Input Fasilitas dan pelaporan kejadian dari peta dapat digunakan. |
 
 Untuk reproduksi uji HTTP, siapkan fixture administratif dan peta pada server uji loopback dengan migrasi hingga 009. Jalankan `python3 tools/tests/facility_operator.py` dari folder `binprof/`. Gunakan akun dan data sintetis.
+
+## Pembaruan UI/UX
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| Login dan navigasi | Lulus di Chromium. Galat 401 tetap di formulir, email terbawa, kata sandi kosong, toggle berfungsi, panel akun masuk viewport desktop, dan Escape mengembalikan fokus ke Menu di ponsel. |
+| Input Fasilitas dan diklat | Lulus di Chromium 390 px. Pintasan profil membuka peserta terpilih, URL lintas fasilitas menghasilkan 404, dan halaman tidak meluber secara horizontal. |
+| Peta Kendali | Lulus di Chromium desktop dan mobile. Judul tunggal, peta dalam viewport desktop, bidang periode kondisional, preset aktif, fullscreen, fallback, mode rapat, perbandingan, dan pembersihan sesi diperiksa. |
+| Regresi alur | Lulus untuk smoke administratif, klinis, enam tab personel, pensiun, lima jabatan, operator RSAU/FKTP, workflow Peta Kendali, serta browser Peta Fasilitas. |
+| Aset lokal | Lulus. Suite UX dan Peta Kendali tidak menerima error JavaScript atau permintaan lintas origin. |
+
+Siapkan fixture sintetis dari suite Peta Kendali dan Operator Fasilitas pada migrasi hingga 009. Jalankan `node tools/tests/ux.mjs` dan `node tools/tests/executive.mjs` dengan Playwright dan Chromium pada origin loopback. Pengukuran dan batas pengujian dicatat di [analisis UI/UX](UI_UX.md).

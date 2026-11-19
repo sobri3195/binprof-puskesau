@@ -89,10 +89,30 @@ function readForm() {
     return Object.fromEntries(keys.map(key => [key,form.elements[key].value.trim()]));
 }
 
+function showPeriodFields() {
+    q("[data-exec-date]").hidden = form.elements.mode.value !== "history";
+    q("[data-exec-horizon]").hidden = form.elements.mode.value !== "projection";
+}
+
+function updateControls() {
+    const count = ["command_id","unit_id","facility_id","type_id","profession_id","specialty_id"]
+        .filter(name => filters[name] !== null && filters[name] !== "").length;
+    q("[data-exec-filter-status]").textContent = count ? count + " aktif" : "";
+    for (const control of root.querySelectorAll("[data-exec-preset]")) {
+        const preset = control.dataset.execPreset;
+        const layer = preset === "now" ? "situation" : preset;
+        const periodMatches = preset === "retirement"
+            ? filters.mode === "projection" && Number(filters.months) === 12
+            : filters.mode === "now";
+        control.setAttribute("aria-pressed",String(layer === filters.layer && periodMatches && filters.metric === "all"));
+    }
+}
+
 function applyForm(current) {
     for (const key of keys) form.elements[key].value = current[key] ?? "";
     layerSelect.value = current.layer;
     linkedOptions();
+    showPeriodFields();
 }
 
 function activeCard(metric) {
@@ -103,6 +123,7 @@ function renderCards() {
     for (const node of root.querySelectorAll("[data-kpi]")) {
         const key = node.dataset.kpi;
         node.setAttribute("aria-pressed",String(filters.metric === key));
+        node.classList.toggle("is-unavailable",model.kpi[key] === null);
         node.querySelector("span").textContent = model.labels[key];
         node.querySelector("strong").textContent = model.kpi[key] ?? (key === "shortage" ? "Belum dapat dinilai" : "Belum tersedia");
         node.querySelector("small").textContent = model.covered[key] + " dari " + model.rows.length + " fasilitas dengan data";
@@ -316,6 +337,7 @@ function render({fit=false}={}) {
     if (exp) exp.href = endpoint("pdf",filters);
     notice(model.status);
     renderCards();
+    updateControls();
     renderLists();
     renderMarkers();
     renderCompare();
@@ -456,6 +478,10 @@ function renderSaved() {
 }
 
 enableFullscreen(root,() => map?.invalidateSize());
+form.elements.mode.addEventListener("change",() => {
+    showPeriodFields();
+    if (form.elements.mode.value !== "now") q(".exec-filters").open = true;
+});
 form.addEventListener("submit",event => {
     event.preventDefault();
     load({...filters,...readForm(),metric:"all"},{activity:true,fit:true});

@@ -193,8 +193,13 @@ function trainingForm(array $user): void
     if ($row['archived_at'] ?? null) {
         fail(409, 'Pulihkan arsip sebelum mengubah diklat.');
     }
+    $participant = !$id && isset($_GET['personnel_id']) ? person($user,key32($_GET,'personnel_id')) : null;
+    if ($participant && $participant['archived_at']) {
+        fail(409,'Pulihkan arsip personel sebelum mencatat diklat.');
+    }
     $people = [];
-    if (!$id) {
+    $q = '';
+    if (!$id && !$participant) {
         [$scoped, $params] = scope($user, 'p.unit_id', 'p.facility_id');
         $q = field($_GET, 'q', 100);
         if (mb_strlen($q) >= 2) {
@@ -203,20 +208,25 @@ function trainingForm(array $user): void
                 ORDER BY p.name,p.id LIMIT 50", [...$params, $q, $q])->fetchAll(PDO::FETCH_KEY_PAIR);
         }
     }
-    page($id ? 'Ubah diklat' : 'Tambah diklat', static function () use ($id, $row, $people): void {
+    page($id ? 'Ubah diklat' : 'Tambah diklat', static function () use ($id,$row,$people,$participant,$q): void {
         echo '<section class="surface form-surface">';
-        if (!$id) {
+        if (!$id && !$participant) {
             getStart(TRAINING . '/edit');
-            input('q', 'Cari personel (minimal 2 karakter)', $_GET['q'] ?? '', required: true, max: 100);
+            input('q','Nama atau NRP (minimal 2 karakter)',$q,required:true,max:100);
             echo '<button>Cari</button></form>';
             if (!$people) {
-                echo '<p class="empty">Cari berdasarkan nama atau NRP untuk memilih peserta.</p></section>';
+                echo '<p class="empty">' . ($q==='' ? 'Cari peserta untuk mulai mencatat diklat.' :
+                    (mb_strlen($q)<2 ? 'Masukkan sedikitnya dua karakter.' : 'Personel yang sesuai tidak ditemukan dalam cakupan Anda.')) . '</p></section>';
                 return;
             }
         }
-        postStart(TRAINING . '/save', $id ? ['id'=>$id,'version'=>$row['row_version']] : []);
+        $hidden = $id ? ['id'=>$id,'version'=>$row['row_version']] : ($participant ? ['personnel_id'=>$participant['id']] : []);
+        if ($participant) {
+            definition(['Peserta'=>$participant['name'] . ' · ' . $participant['nrp']]);
+        }
+        postStart(TRAINING . '/save',$hidden);
         echo '<div class="form-grid">';
-        if (!$id) {
+        if (!$id && !$participant) {
             selectField('personnel_id', 'Peserta', $people);
         }
         selectField('type_id', 'Jenis', optionsFor('training_types'), $row['type_id'] ?? '');
@@ -228,7 +238,7 @@ function trainingForm(array $user): void
         echo '</div>';
         textArea('notes', 'Catatan', $row['notes'] ?? '');
         echo '<div class="actions"><button>Simpan</button>';
-        linkButton(TRAINING, 'Batal');
+        linkButton($participant ? '/app/personel/detail' : TRAINING,'Batal',$participant ? ['id'=>$participant['id']] : []);
         echo '</div></form></section>';
     }, $user, TRAINING);
 }

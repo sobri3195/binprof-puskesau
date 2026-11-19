@@ -1,6 +1,6 @@
 # Peta database
 
-Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, `004_whatsapp_cloud.sql`, `005_personnel_records.sql`, `006_personnel_retirements.sql`, dan `007_executive_dashboard.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
+Impor `private/database/binprofkes.sql` lalu jalankan migrasi `002_interactive_maps.sql`, `003_clinical_records.sql`, `004_whatsapp_cloud.sql`, `005_personnel_records.sql`, `006_personnel_retirements.sql`, `007_executive_dashboard.sql`, dan `008_binprof_position_roles.sql`. SQL awal dibuat dari spesifikasi lampiran. Daftar skema lampiran menjadi referensi desain karena berkas SQL asal tidak tersedia.
 
 - `commands` mengelompokkan `units`. `facilities` terhubung ke satuan dan `facility_types`. Koordinat harus sepasang dan berada dalam rentang lintang/bujur yang berlaku.
 - `personnel` berelasi dengan satuan, fasilitas, pangkat, korps, profesi, spesialisasi, riwayat, penghargaan, dan karya. Foreign key gabungan memeriksa satuan fasilitas. NIK dan kontak menggunakan envelope AEAD. NIK memiliki indeks HMAC pencarian tepat.
@@ -56,3 +56,7 @@ Kategori kejadian memakai `operations` (Operasional), `data` (Pembaruan data), d
 - `facility_staffing_targets` menyimpan target berversi per fasilitas/profesi. `facility_assessment_rules` menyimpan ambang dan kategori sertifikat. `executive_roster_reviews` menyimpan pemeriksaan roster dan PIC. `executive_event_verifications` menghubungkan bukti administratif dengan kejadian peta yang ada.
 - `executive_directives` dan `executive_directive_updates` menyimpan arahan, versi dan riwayat. `executive_directive_reads` memisahkan status baca pengguna dari status workflow. `executive_directive_files` memakai relasi ke `file_objects` dan penyimpanan privat.
 - `facility_metric_snapshots` merekam agregat per fasilitas dan tanggal. Kunci gabungan mempertahankan snapshot pertama pada hari itu.
+
+## Migrasi 008
+
+Migrasi ini menambah lima peran jabatan ke `roles` dan izin eksplisit ke `role_permissions`. Izin `personnel.identity` memisahkan akses kontak/NIK dari baca profil. Pemberian izin ini mempertahankan akses pembaca profil yang sudah ada sebelum migrasi. Penetapan peran tetap memakai `users.role_code`. Cakupan memakai `user_unit_scopes` dan `user_facility_scopes`. Migrasi mempertahankan pengaturan akun, penugasan, dan histori yang sudah tersimpan.

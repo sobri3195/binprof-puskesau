@@ -112,3 +112,16 @@ Migrasi 007 berhasil diterapkan pada database sintetis MariaDB 10.11 dengan migr
 | Ekspor dan data privat | Lulus. Ekspor menghasilkan berkas PDF A4 lanskap satu halaman dengan header privat, memakai agregat dan filter dari cakupan yang sah. Judul/instruksi arahan serta catatan personel privat tidak ikut dalam payload Peta Kendali. |
 
 Untuk reproduksi, jalankan `tools/tests/smoke_admin.py` dan impor `tools/tests/map_fixtures.sql` pada server uji loopback sesuai bagian awal. Terapkan migrasi hingga 007. Dari `binprof/`, jalankan `python3 tools/tests/executive.py` lalu `node tools/tests/executive.mjs` dengan Playwright dan Chromium. Gunakan database sintetis yang belum memiliki data suite Peta Kendali. Lingkungan produksi dan cPanel belum diuji untuk perubahan ini.
+
+## Lima jabatan Binprof
+
+Migrasi 008 diuji pada MariaDB 10.11 dan PHP 8.4. Suite memakai data sintetis serta akun yang telah ada dari migrasi 001–007.
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| Akun dan cakupan | Lulus. Jabatan aktif memerlukan cakupan. Kapuskesau dan Dirbinprof menuju Peta Kendali. Kasipa, Kasibata, dan Staf Binprof menuju Ikhtisar. Cakupan fasilitas saja mengizinkan pembuatan personel di fasilitas tersebut dan menolak pembuatan di tingkat satuan. |
+| Izin dan perlindungan data | Lulus. Akses lintas cakupan, PDF tanpa wewenang, administrasi pengguna, serta NIK/kontak pada lima jabatan baru ditolak. Sunting data umum mempertahankan NIK/kontak yang sudah tersimpan. Pembaca lama tetap mendapat akses semula. Hak Kasus dan klinis diuji terpisah. |
+| Pensiun | Lulus. Staf mengajukan, Kasipa memverifikasi Petikan, Dirbinprof memverifikasi dan menerapkan, dan Kapuskesau mengembalikan, menyetujui, atau membatalkan sesuai tahap. Percobaan melewati tahap atau wewenang ditolak. |
+| Perubahan akun | Lulus. Perubahan jabatan dan cakupan mencabut sesi lama. Login baru hanya memberi akses dengan pengaturan terbaru. |
+
+Untuk reproduksi, siapkan server dan database uji loopback dengan fixture `tools/tests/smoke_admin.py`, `tools/tests/map_fixtures.sql`, dan migrasi hingga 008. Dari `binprof/`, jalankan `python3 tools/tests/position_roles.py`.

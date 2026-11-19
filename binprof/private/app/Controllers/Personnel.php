@@ -140,6 +140,16 @@ function person(array $user, string $id, bool $lock = false): array
     return $row;
 }
 
+function personnelIdentityAllowed(array $user): bool
+{
+    if (can($user,'personnel.identity')) {
+        return true;
+    }
+    static $migrationApplied;
+    $migrationApplied ??= (bool) qu("SELECT 1 FROM schema_migrations WHERE version='008_binprof_position_roles'")->fetchColumn();
+    return !$migrationApplied;
+}
+
 function personnelDetail(array $user): void
 {
     $id = key32($_GET);
@@ -147,6 +157,12 @@ function personnelDetail(array $user): void
     $tabs = ['basic'=>'Info dasar','contact'=>'Kontak','history'=>'Riwayat kedinasan','awards'=>'Penghargaan','works'=>'Karya'];
     require_once PROJECT . '/private/app/Views/personnel_records.php';
     $tab = choice($_GET, 'tab', [...array_keys($tabs),...array_keys(PROFILE_TABS),RETIREMENT_TAB], 'basic');
+    if (!personnelIdentityAllowed($user)) {
+        unset($tabs['contact']);
+        if ($tab==='contact') {
+            fail(403,'Akses kontak dan NIK tidak tersedia.');
+        }
+    }
     $profileContent = isset(PROFILE_TABS[$tab]) ? profilePrepareTab($user,$record,$tab) : null;
     if ($tab === RETIREMENT_TAB) {
         require_once PROJECT . '/private/app/Views/retirement.php';
@@ -227,7 +243,10 @@ function personnelForm(array $user): void
         input('name', 'Nama', $row['name'] ?? '', required: true);
         input('nrp', 'NRP', $row['nrp'] ?? '', required: true, max: 40);
         if (!$id) {
-            selectField('unit_id', 'Satuan', optionsFor('units', $user));
+            [$scoped,$args] = scope($user,'u.id','f.id');
+            $units = qu("SELECT DISTINCT u.id,u.name FROM units u LEFT JOIN facilities f ON f.unit_id=u.id AND f.active=1
+                WHERE u.active=1 AND $scoped ORDER BY u.name,u.id",$args)->fetchAll(PDO::FETCH_KEY_PAIR);
+            selectField('unit_id', 'Satuan', $units);
         }
         selectField('facility_id', 'Fasilitas', optionsFor('facilities', $user), $row['facility_id'] ?? '', 'Tanpa fasilitas');
         selectField('profession_id', 'Profesi', optionsFor('professions'), $row['profession_id'] ?? '');
@@ -238,8 +257,10 @@ function personnelForm(array $user): void
         selectField('active', 'Status dinas', !empty($row['retired_on']) ? [0=>'Purnawirawan'] : [1=>'Aktif',0=>'Nonaktif'], $row['active'] ?? 1);
         selectField('bp', 'Status BP', BP, $row['bp_status'] ?? 'unknown');
         input('promotion_date', 'Rencana kenaikan pangkat', $row['promotion_date'] ?? '', 'date');
-        input('contact', 'Kontak', isset($row['contact_ciphertext']) ? unseal($row['contact_ciphertext'], "$id:contact") : '', 'tel', max: 80);
-        input('nik', 'NIK', isset($row['nik_ciphertext']) ? unseal($row['nik_ciphertext'], "$id:nik") : '', max: 16);
+        if (personnelIdentityAllowed($user)) {
+            input('contact', 'Kontak', isset($row['contact_ciphertext']) ? unseal($row['contact_ciphertext'], "$id:contact") : '', 'tel', max: 80);
+            input('nik', 'NIK', isset($row['nik_ciphertext']) ? unseal($row['nik_ciphertext'], "$id:nik") : '', max: 16);
+        }
         echo '</div><fieldset><legend>Spesialisasi</legend><div class="choices">';
         foreach (optionsFor('specialties', activeOnly: false) as $key => $label) {
             echo '<label><input type="checkbox" name="specialties[]" value="' . e($key) . '"'
@@ -260,6 +281,10 @@ function personnelSave(array $user): never
     if (!preg_match('~^[a-zA-Z0-9./-]+$~D', $nrp)) {
         fail(422, 'Format NRP tidak valid.');
     }
+    $identity = personnelIdentityAllowed($user);
+    if (!$identity && (array_key_exists('contact',$_POST) || array_key_exists('nik',$_POST))) {
+        fail(403,'Perubahan kontak dan NIK tidak tersedia.');
+    }
     $nik = field($_POST, 'nik', 16);
     if ($nik !== '' && !preg_match('/^[0-9]{16}$/D', $nik)) {
         fail(422, 'NIK harus berisi 16 angka.');
@@ -271,8 +296,8 @@ function personnelSave(array $user): never
     }
     $facility = number($_POST, 'facility_id');
     $position = field($_POST, 'position_title');
-    saveUnique(static function () use ($user, $id, $existing, $name, $nrp, $nik, $contact, $selected, $facility, $position): void {
-        tx(static function () use ($user, $id, $existing, $name, $nrp, $nik, $contact, $selected, $facility, $position): void {
+    saveUnique(static function () use ($user, $id, $existing, $name, $nrp, $nik, $contact, $identity, $selected, $facility, $position): void {
+        tx(static function () use ($user, $id, $existing, $name, $nrp, $nik, $contact, $identity, $selected, $facility, $position): void {
             $prior = $existing ? person($user, $id, true) : null;
             $unit = $prior ? (int) $prior['unit_id'] : number($_POST, 'unit_id');
             if (!$unit) {
@@ -286,14 +311,17 @@ function personnelSave(array $user): never
             if (!empty($prior['retired_on']) && $active) {
                 fail(409,'Status Purnawirawan tidak dapat diaktifkan sebagai personel dinas.');
             }
+            $privateFields = $identity ? [
+                $contact === '' ? null : seal($contact, "$id:contact"),
+                $nik === '' ? null : seal($nik, "$id:nik"),
+                $nik === '' ? null : hash_hmac('sha256', $nik, secretBytes(cfg('lookup_pepper')), true),
+            ] : [$prior['contact_ciphertext'] ?? null,$prior['nik_ciphertext'] ?? null,$prior['nik_lookup_hash'] ?? null];
             $values = [$name, $nrp, $unit, $facility,
                 verifyMaster('ranks', number($_POST, 'rank_id'), false),
                 verifyMaster('corps', number($_POST, 'corps_id'), false),
                 verifyMaster('professions', number($_POST, 'profession_id')),
                 $position, field($_POST, 'occupation'), $active,
-                choice($_POST, 'bp', array_keys(BP)), calendar($_POST, 'promotion_date'),
-                $contact === '' ? null : seal($contact, "$id:contact"), $nik === '' ? null : seal($nik, "$id:nik"),
-                $nik === '' ? null : hash_hmac('sha256', $nik, secretBytes(cfg('lookup_pepper')), true)];
+                choice($_POST, 'bp', array_keys(BP)), calendar($_POST, 'promotion_date'), ...$privateFields];
             if ($existing) {
                 qu('UPDATE personnel SET name=?,nrp=?,unit_id=?,facility_id=?,rank_id=?,corps_id=?,profession_id=?,position_title=?,
                     occupation=?,active=?,bp_status=?,promotion_date=?,contact_ciphertext=?,nik_ciphertext=?,nik_lookup_hash=?,

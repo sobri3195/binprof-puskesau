@@ -7,7 +7,9 @@ require_once PROJECT . '/private/app/Views/retirement.php';
 function retirementAction(array $user,string $operation): array
 {
     retirementRequire($user,'read');
-    retirementRequire($user,$operation);
+    if ($operation!=='read') {
+        retirementRequire($user,$operation);
+    }
     $personnel = key32($_POST,'personnel');
     person($user,$personnel);
     $id = field($_POST,'retirement',32) === '' ? null : key32($_POST,'retirement');
@@ -28,9 +30,8 @@ function retirementSave(array $user): never
 
 function retirementDecision(array $user): never
 {
-    $operations = ['submit'=>'write','verify'=>'verify','approve'=>'approve','return'=>'verify','cancel'=>'write'];
-    $action = choice($_POST,'action',array_keys($operations));
-    [$personnel,$id] = retirementAction($user,$operations[$action]);
+    $action = choice($_POST,'action',['submit','verify','approve','return','cancel']);
+    [$personnel,$id] = retirementAction($user,'read');
     retirementTransition($user,$personnel,$id ?? fail(422,'Catatan diperlukan.'),$action);
     retirementDone($personnel,'Tahap pensiun diperbarui.');
 }

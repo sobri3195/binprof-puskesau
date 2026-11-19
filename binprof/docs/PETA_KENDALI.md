@@ -9,6 +9,8 @@
 5. Pilih komando, satuan, fasilitas, jenis, profesi atau spesialisasi. Kartu, peta, tabel, panel, prioritas, dan ekspor menggunakan himpunan hasil yang sama. Kartu menyaring fasilitas yang mempunyai nilai positif pada indikator tersebut. Kartu fasilitas menampilkan seluruh fasilitas aktif sesuai filter. Cakupan jumlah tersedia tercantum pada tiap indikator.
 6. Klik prioritas atau marker untuk fokus fasilitas. Buka **Dasar penilaian, sumber, dan versi** untuk nilai aktual, target/ambang, tanggal, sumber, dan versi. Bandingkan hingga empat fasilitas. Daftar personel, Diklat, Pensiun dan Arahan membuka modul asal dengan izin dan filter fasilitas yang sesuai.
 
+Setelah migrasi 008, Kapuskesau dan Dirbinprof juga membuka Peta Kendali saat login. Kasipa dan Kasibata dapat membuka **Sumber penilaian** dari navigasi. [Matriks jabatan](MATRIKS_HAK_AKSES.md#lima-jabatan-binprof)
+
 ## Kamus indikator
 
 | Indikator | Sumber dan perhitungan |

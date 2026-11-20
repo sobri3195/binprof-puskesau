@@ -261,9 +261,9 @@ function personnelForm(array $user): void
             }
             selectField('facility_id', 'Fasilitas', optionsFor('facilities', $user), $row['facility_id'] ?? '', 'Tanpa fasilitas');
         }
-        selectField('profession_id', 'Profesi', optionsFor('professions'), $row['profession_id'] ?? '');
-        selectField('rank_id', 'Pangkat', optionsFor('ranks'), $row['rank_id'] ?? '', 'Belum dicatat');
-        selectField('corps_id', 'Korps', optionsFor('corps'), $row['corps_id'] ?? '', 'Belum dicatat');
+        selectField('profession_id', 'Profesi', optionsFor('professions', retain: $row['profession_id'] ?? null), $row['profession_id'] ?? '');
+        selectField('rank_id', 'Pangkat', optionsFor('ranks', retain: $row['rank_id'] ?? null), $row['rank_id'] ?? '', 'Belum dicatat');
+        selectField('corps_id', 'Korps', optionsFor('corps', retain: $row['corps_id'] ?? null), $row['corps_id'] ?? '', 'Belum dicatat');
         input('position_title', 'Jabatan', $row['position_title'] ?? '');
         input('occupation', 'Pekerjaan', $row['occupation'] ?? '');
         selectField('active', 'Status dinas', !empty($row['retired_on']) ? [0=>'Purnawirawan'] : [1=>'Aktif',0=>'Nonaktif'], $row['active'] ?? 1);
@@ -329,9 +329,9 @@ function personnelSave(array $user): never
                 $nik === '' ? null : hash_hmac('sha256', $nik, secretBytes(cfg('lookup_pepper')), true),
             ] : [$prior['contact_ciphertext'] ?? null,$prior['nik_ciphertext'] ?? null,$prior['nik_lookup_hash'] ?? null];
             $values = [$name, $nrp, $unit, $facility,
-                verifyMaster('ranks', number($_POST, 'rank_id'), false),
-                verifyMaster('corps', number($_POST, 'corps_id'), false),
-                verifyMaster('professions', number($_POST, 'profession_id')),
+                verifyMaster('ranks', number($_POST, 'rank_id'), false, $prior['rank_id'] ?? null),
+                verifyMaster('corps', number($_POST, 'corps_id'), false, $prior['corps_id'] ?? null),
+                verifyMaster('professions', number($_POST, 'profession_id'), retain: $prior['profession_id'] ?? null),
                 $position, field($_POST, 'occupation'), $active,
                 choice($_POST, 'bp', array_keys(BP)), calendar($_POST, 'promotion_date'), ...$privateFields];
             if ($existing) {
@@ -354,6 +354,7 @@ function personnelSave(array $user): never
                 qu('INSERT INTO personnel_specialties VALUES (?,?)', [$id, $sp]);
             }
             audit($user['id'], $existing ? 'update' : 'create', 'personnel', $id, $unit);
+            mapRefreshFacilities();
         });
     });
     done('Profil disimpan.', PERSONNEL . '/detail', ['id'=>$id]);
@@ -371,6 +372,7 @@ function personnelStatus(array $user): never
         qu('UPDATE personnel SET archived_at=?,row_version=row_version+1 WHERE id=?',
             [$action === 'archive' ? gmdate('Y-m-d H:i:s') : null, $id]);
         audit($user['id'], $action, 'personnel', $id, (int) $row['unit_id']);
+        mapRefreshFacilities();
     });
     done('Status arsip diperbarui.', PERSONNEL . '/detail', ['id'=>$id]);
 }

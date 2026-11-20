@@ -104,10 +104,19 @@ function executiveFacilityMetrics(array $facility,array $staff,?array $rule,arra
     usort($verifiedEvents,static fn(array $a,array $b): int =>
         array_search($b['severity'],array_keys(MAP_SEVERITIES),true) <=> array_search($a['severity'],array_keys(MAP_SEVERITIES),true));
     $event = $verifiedEvents[0] ?? null;
+    $attention = $cert ? (int) $cert['attention'] : null;
+    $covered = (int) ($cert['covered'] ?? 0);
+    $eligible = (int) ($cert['eligible'] ?? 0);
+    $certificateReason = $cert
+        ? "$covered dari $eligible personel aktif dalam filter memiliki sertifikat wajib terverifikasi yang berlaku."
+        : 'Cakupan sertifikat wajib belum dapat dinilai.';
+    if ($attention) {
+        $certificateReason .= ' ' . $attention . ' personel memiliki bukti terbaik yang habis atau mendekati akhir berlaku.';
+    }
     $certificate = executiveAssessment(
-        !$cert ? 'gray' : ((int) $cert['attention']>0 ? 'yellow' : 'green'),
-        !$cert ? 'Sertifikat wajib terverifikasi belum tercatat.' : 'Sertifikat pada kategori wajib yang habis atau mendekati akhir berlaku.',
-        $cert ? (int) $cert['attention'] : null,$rule && $rule['certificate_category_id'] ? (int) $rule['certificate_window'] . ' hari' : null,
+        $attention ? 'yellow' : ($eligible > 0 && $covered === $eligible ? 'green' : 'gray'),
+        $certificateReason,$cert && $cert['updated_at'] !== null ? $attention : null,
+        $rule && $rule['certificate_category_id'] ? (int) $rule['certificate_window'] . ' hari' : null,
         $cert['earliest'] ?? $cert['updated_at'] ?? null,$rule['source_reference'] ?? null,$rule['version_label'] ?? null);
     $incident = executiveAssessment(
         !$event ? ($events ? 'gray' : 'green') : match($event['severity']) {'critical'=>'red','warning'=>'yellow',default=>'green'},

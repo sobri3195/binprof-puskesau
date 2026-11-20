@@ -114,7 +114,7 @@ function masterSave(array $user): never
                 $id = (int) db()->lastInsertId();
             }
             if ($kind === 'facilities') {
-                qu('UPDATE map_revision SET refresh_revision=revision+1,revision=revision+1 WHERE id=1');
+                mapRefreshFacilities();
             }
             audit($user['id'], $action, $kind, (string) $id);
         });

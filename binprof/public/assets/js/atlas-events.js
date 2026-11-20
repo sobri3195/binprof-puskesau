@@ -1,6 +1,6 @@
 import {button, element, timeText} from "./atlas-ui.js";
 
-export function enableEvents(root, api, {focus, onBadges, showStatus}) {
+export function enableEvents(root, api, {focus, onBadges, onRefresh, showStatus}) {
     const categories = JSON.parse(root.dataset.categories);
     const severities = JSON.parse(root.dataset.severity);
     const zone = root.dataset.zone;
@@ -22,6 +22,17 @@ export function enableEvents(root, api, {focus, onBadges, showStatus}) {
     let retry = 30000;
     let preferenceRevision;
     let browserOptIn = false;
+    let browserNote;
+
+    function stop() {
+        stopped = true;
+        clearTimeout(timer);
+        clearTimeout(dismiss);
+        browserNote?.close?.();
+        events.clear();
+        list.replaceChildren();
+        toast.textContent = "";
+    }
 
     function browserLabel() {
         browser.textContent = browserOptIn ? "Matikan notifikasi browser" : "Aktifkan notifikasi browser";
@@ -30,6 +41,7 @@ export function enableEvents(root, api, {focus, onBadges, showStatus}) {
     browserLabel();
     browser.addEventListener("click", async () => {
         const granted = browserOptIn ? false : await Notification.requestPermission() === "granted";
+        if (stopped) return;
         if (!browserOptIn && !granted) showStatus("Izin browser belum diberikan.");
         browserOptIn = granted;
         browserLabel();
@@ -46,6 +58,7 @@ export function enableEvents(root, api, {focus, onBadges, showStatus}) {
         if (browserOptIn && "Notification" in window && Notification.permission === "granted") {
             try {
                 const note = new Notification("BINPROFKES", {body:text,tag:"binprof-maps"});
+                browserNote = note;
                 note.onclick = () => { window.focus(); panel.open = true; note.close(); };
             } catch {}
         }
@@ -94,16 +107,16 @@ export function enableEvents(root, api, {focus, onBadges, showStatus}) {
         }
     }
 
-    async function poll(force = false) {
+    async function poll() {
         clearTimeout(timer);
-        if (stopped || (document.hidden && !browserOptIn && !force)) return;
+        if (stopped || (document.hidden && !browserOptIn)) return;
         if (pending) {
             queued = true;
             return;
         }
         pending = true;
         try {
-            const data = await api("events",{query:{after:force ? null : cursor ?? null,personal:force ? null : personal ?? null}});
+            const data = await api("events",{query:{after:cursor ?? null,personal:personal ?? null}});
             if (stopped) return;
             const incoming = data.events.filter(row => cursor !== undefined && !data.reset && !events.has(row.id)
                 && !row.read_at && !row.resolved_at && data.preferences[row.category]);
@@ -125,13 +138,15 @@ export function enableEvents(root, api, {focus, onBadges, showStatus}) {
             if (data.changed) {
                 const active = data.badges.reduce((total,row) => total + Number(row.unread),0);
                 root.querySelector("[data-unread]").textContent = active ? String(active) : "";
-                onBadges(data.badges,events,data.refresh_facilities);
+                onBadges(data.badges,events);
                 render();
             }
             if (incoming.length && !data.preferences.muted && !data.preferences.quiet) notify(incoming.length);
             conn.textContent = "Terhubung · Sinkron terakhir " + timeText(lastSync,zone);
             retry = 30000;
+            onRefresh(data.refresh_revision);
         } catch {
+            if (stopped) return;
             conn.textContent = lastSync ? "Sinkronisasi terputus · Terakhir " + timeText(lastSync,zone) : "Sinkronisasi belum tersedia";
             retry = Math.min(retry * 2,120000);
         } finally {
@@ -172,17 +187,14 @@ export function enableEvents(root, api, {focus, onBadges, showStatus}) {
         else clearTimeout(timer);
     });
     window.addEventListener("offline", () => {
+        if (stopped) return;
         conn.textContent = lastSync ? "Luring · Sinkron terakhir " + timeText(lastSync,zone) : "Luring";
     });
     window.addEventListener("online", () => poll());
-    window.addEventListener("pagehide", event => {
-        if (!event.persisted) stopped = true;
-        clearTimeout(timer);
-    });
-    window.addEventListener("pageshow", event => { if (event.persisted) poll(true); });
+    window.addEventListener("focus", () => poll());
     poll();
     return {
-        poll,
+        stop,
         async create(facility, fields) {
             const outcome = await api("events",{body:{action:"create",facility,...fields}});
             await poll();

@@ -79,7 +79,7 @@ function retirementHistory(string $id,?int $actor,string $action,?string $reason
         [$actor,$action,$reason,REQUEST_ID,$id]);
     $unit = qu('SELECT p.unit_id FROM personnel_retirements r JOIN personnel p ON p.id=r.personnel_id WHERE r.id=?',[$id])->fetchColumn();
     audit($actor,'retirement_' . $action,'personnel_retirements',$id,(int) $unit);
-    retirementRefreshMap();
+    mapRefreshFacilities();
 }
 
 function retirementVersion(array $row): int
@@ -94,9 +94,4 @@ function retirementInvalidateNotifications(string $id): void
 {
     qu("UPDATE notifications SET cancelled_at=UTC_TIMESTAMP() WHERE event_key LIKE ? AND cancelled_at IS NULL",
         ["retirement:$id:%"]);
-}
-
-function retirementRefreshMap(): void
-{
-    qu('UPDATE map_revision SET refresh_revision=revision+1,revision=revision+1 WHERE id=1');
 }

@@ -268,6 +268,7 @@ function trainingSave(array $user): never
                 VALUES (?,?,?,?,?,?,?,?,?)', [...$values, $id, $row['id']]);
         }
         audit($user['id'], $existing ? 'update' : 'create', 'training', $id, (int) $row['unit_id']);
+        mapRefreshFacilities();
     });
     done('Diklat disimpan.', TRAINING . '/detail', ['id'=>$id]);
 }
@@ -283,6 +284,7 @@ function trainingStatus(array $user): never
         qu('UPDATE training_records SET archived_at=?,row_version=row_version+1 WHERE id=?',
             [$row['archived_at'] ? null : gmdate('Y-m-d H:i:s'), $id]);
         audit($user['id'], $row['archived_at'] ? 'restore' : 'archive', 'training', $id, (int) $row['unit_id']);
+        mapRefreshFacilities();
     });
     done('Status diklat diperbarui.', TRAINING . '/detail', ['id'=>$id]);
 }

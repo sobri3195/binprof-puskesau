@@ -12,11 +12,14 @@ function mapExplore(array $user): void
     $route = ($_GET['r'] ?? parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH)) === '/app/peta-sebaran'
         ? '/app/peta-sebaran' : MAP_PATH;
     $filters = mapFilters($_GET);
+    $revision = mapFacilityRevision();
     $rows = retirementMapRows($user,mapRows($user,$filters),$filters);
     $retirement = retirementMetricsAllowed($user);
-    page($route === MAP_PATH ? 'Peta fasilitas' : 'Peta sebaran',static function () use ($route,$filters,$rows,$user,$retirement): void {
+    page($route === MAP_PATH ? 'Peta fasilitas' : 'Peta sebaran',static function () use ($route,$filters,$rows,$user,$retirement,$revision): void {
         ?>
         <section class="surface atlas" data-atlas data-rows="<?= e(json_encode($rows,JSON_THROW_ON_ERROR)) ?>"
+            data-login="<?= e(url('/login')) ?>" data-session-seconds="<?= max(0, $user['expires_at'] - time()) ?>"
+            data-revision="<?= e($revision) ?>"
             data-routes="<?= e(json_encode(array_map('url',[
                 'markers'=>MAP_API . '/markers','detail'=>MAP_API . '/detail','personnel'=>MAP_API . '/personnel',
                 'events'=>MAP_API . '/events','preferences'=>MAP_API . '/preferences','views'=>MAP_API . '/views',
@@ -218,5 +221,6 @@ function mapPersonnel(array $user): never
 function mapMarkers(array $user): never
 {
     $filters = mapFilters($_GET);
+    header('X-Binprof-Map-Revision: ' . mapFacilityRevision());
     jsonResponse(retirementMapRows($user,mapRows($user,$filters),$filters));
 }

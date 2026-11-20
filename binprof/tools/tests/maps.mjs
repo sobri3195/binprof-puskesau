@@ -248,9 +248,45 @@ try {
     await mobile.evaluate(() => window.dispatchEvent(new Event("offline")));
     await mobile.locator("[data-connect]").getByText("Luring",{exact:false}).waitFor();
 
+    const home = all.find(row => row.id === 1);
+    const homeRow = scoped.locator("[data-table] tbody tr").filter({hasText:home.name});
+    const count = Number(await homeRow.locator("td").nth(4).textContent());
+    await homeRow.getByRole("button",{name:home.name,exact:true}).click();
+    const roster = scoped.locator("[data-detail]");
+    await roster.getByRole("button",{name:"Muat daftar personel"}).click();
+    await roster.locator(".atlas-list a").first().waitFor();
+    const newName = "DATA DEMO Regresi roster";
+    const addPerson = await admin.request.post(base + "/app/personel/save",{
+        headers:{Origin:base},maxRedirects:0,form:{csrf:await admin.locator("[data-atlas]").getAttribute("data-csrf"),
+            name:newName,nrp:"MAP-ROSTER-DELTA",unit_id:1,facility_id:home.id,profession_id:1,active:1,bp:"unknown"},
+    });
+    assert.equal(addPerson.status(),303);
+    await scoped.evaluate(() => window.dispatchEvent(new Event("online")));
+    await eventually(async () => Number(await homeRow.locator("td").nth(4).textContent()) === count+1,"Angka roster belum diperbarui");
+    await roster.getByText(newName,{exact:true}).waitFor();
+    await scoped.evaluate(() => {
+        HTMLElement.prototype.requestFullscreen = () => Promise.reject(new Error("Diblokir oleh pengujian"));
+    });
+    await scoped.locator("[data-fullscreen]").click();
+    await scoped.locator("[data-atlas].is-expanded").waitFor();
+    const otherTab = await scoped.context().newPage();
+    // Keep the Peta tab in view and check the next passive request after logout.
+    const logout = await otherTab.request.post(base+"/logout",{headers:{Origin:base},maxRedirects:0,
+        form:{csrf:await scoped.locator("[data-atlas]").getAttribute("data-csrf")}});
+    assert.equal(logout.status(),303);
+    const unauthorized = scoped.waitForResponse(response => response.url().includes("/api/maps/events") && response.status() === 401);
+    await scoped.bringToFront();
+    await scoped.evaluate(() => window.dispatchEvent(new Event("online")));
+    await unauthorized;
+    await scoped.getByText("Sesi Peta berakhir atau akses berubah.",{exact:true}).waitFor();
+    assert.equal(await scoped.locator("[data-detail], [data-atlas][data-rows], .atlas-locked").count(),0);
+    assert.equal(await scoped.getByText(newName,{exact:true}).count(),0);
+    await scoped.getByRole("link",{name:"Masuk kembali"}).click();
+    await scoped.waitForURL("**/login");
+
     assert.deepEqual(external,[]);
     assert.deepEqual(errors,[]);
-    console.log("Maps Chromium: fullscreen, fallback dan mobile, cluster/filter, fokus/radius, 3D/fallback, simpan/bandingkan, delta/kejadian/preferensi dan scope lulus.");
+    console.log("Maps Chromium: fullscreen, fallback dan mobile, cluster/filter, fokus/radius, 3D/fallback, simpan/bandingkan, delta/kejadian/preferensi, scope, pembaruan roster dan logout lintas tab lulus.");
 } finally {
     await browser.close();
 }

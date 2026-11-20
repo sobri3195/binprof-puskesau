@@ -5,7 +5,8 @@ const root = document.querySelector("[data-atlas]");
 const q = selector => root.querySelector(selector);
 const go = matchMedia("(prefers-reduced-motion: reduce)");
 const routes = JSON.parse(root.dataset.routes);
-const api = (key, options = {}) => request(routes[key],{...options,csrf:root.dataset.csrf});
+const loginUrl = root.dataset.login;
+const sessionRequests = new AbortController();
 const flat = q("[data-map]");
 const sphere = q("[data-globe]");
 const filterForm = q("[data-filters]").closest("form");
@@ -44,8 +45,72 @@ let pointCircle;
 let filterSequence = 0;
 let detailSequence = 0;
 let detailRevision = 0;
+let expired = false;
+let sessionTimer;
+let clusterFocusTimer;
+let mapResize;
+let rosterPage;
+let facilityRevision = root.dataset.revision;
+let filtersLoading = false;
+
+async function api(key, {activity = false, onResponse, query, body} = {}) {
+    if (expired) throw new Error("Sesi Peta berakhir.");
+    try {
+        return await request(routes[key],{
+            query:{...query,activity:activity ? 1 : null},body,csrf:root.dataset.csrf,signal:sessionRequests.signal,
+            onResponse(response) {
+                if (expired) return;
+                armExpiry(response.headers.get("X-Binprof-Session-Seconds"));
+                onResponse?.(response);
+            }
+        });
+    } catch (error) {
+        if (error.status === 401 || (error.status === 403 && !body && key !== "personnel")) expire();
+        throw error;
+    }
+}
+
+function armExpiry(seconds) {
+    if (seconds === null || expired) return;
+    clearTimeout(sessionTimer);
+    sessionTimer = setTimeout(expire, Number(seconds) * 1000);
+}
+
+function expire() {
+    if (expired) return;
+    expired = true;
+    clearTimeout(sessionTimer);
+    clearTimeout(clusterFocusTimer);
+    sessionRequests.abort();
+    notifications.stop();
+    leaveFullscreen();
+    ++filterSequence;
+    ++detailSequence;
+    ++sceneRequest;
+    mapResize?.disconnect();
+    map?.remove();
+    map = undefined;
+    globe?.dispose();
+    globe = undefined;
+    rows = [];
+    result.clear();
+    badges.clear();
+    events.clear();
+    comparisons.clear();
+    saved.clear();
+    markerById.clear();
+    cluster = pointCircle = activeEventPanel = null;
+    detail.replaceChildren();
+    for (const key of Object.keys(root.dataset)) if (key !== "atlas") delete root.dataset[key];
+    const message = element("p","Sesi Peta berakhir atau akses berubah.");
+    message.setAttribute("role","alert");
+    const link = element("a","Masuk kembali");
+    link.href = loginUrl;
+    root.replaceChildren(message,link);
+}
 
 function showStatus(message) {
+    if (expired) return;
     const node = q("[data-status]");
     node.textContent = message;
     node.hidden = !message;
@@ -141,6 +206,7 @@ function iconFor(row) {
 function renderMarkers() {
     renderLegend();
     if (!cluster) return;
+    clearTimeout(clusterFocusTimer);
     cluster.clearLayers();
     markerById = new Map();
     const markers = [];
@@ -186,18 +252,23 @@ function tableRows() {
     ])));
 }
 
-async function applyFilters(filters, {announce = true} = {}) {
+async function applyFilters(filters, {announce = true, refresh = false} = {}) {
+    if (expired) return false;
     const requestId = ++filterSequence;
+    filtersLoading = true;
+    let nextRevision;
     if (announce) showStatus("Memuat fasilitas…");
     try {
-        const next = await api("markers",{query:filters});
-        if (requestId !== filterSequence) return false;
+        const next = await api("markers",{query:filters,activity:!refresh,
+            onResponse:response => { nextRevision = response.headers.get("X-Binprof-Map-Revision"); }});
+        if (expired || requestId !== filterSequence) return false;
         displayedFilters = filters;
         rows = next;
         result = new Map(rows.map(row => [byId(row),row]));
         if (selected && !result.has(selected)) {
             ++detailSequence;
             selected = null;
+            rosterPage = null;
             activeEventPanel = null;
             detail.replaceChildren(element("h3","Detail fasilitas"), element("p","Pilih fasilitas dari hasil filter."));
         }
@@ -206,27 +277,33 @@ async function applyFilters(filters, {announce = true} = {}) {
         renderMarkers();
         if (mode === "globe") await renderGlobe();
         if (requestId !== filterSequence) return false;
-        fitAll();
+        if (!refresh) fitAll();
         nearResults();
         compare();
-        if (selected) openFacility(selected);
+        if (selected) openFacility(selected,{refresh});
+        facilityRevision = nextRevision;
         updateLink(filters);
         if (announce) showStatus(rows.length ? "" : "Tidak ada fasilitas yang sesuai dengan filter.");
         return true;
     } catch (error) {
         if (requestId === filterSequence) showStatus(error.message);
         return false;
+    } finally {
+        if (requestId === filterSequence) filtersLoading = false;
     }
 }
 
-async function openFacility(id, {reveal = false} = {}) {
+async function openFacility(id, {reveal = false, refresh = false} = {}) {
+    if (expired) return;
+    const reloadRoster = refresh && selected === id ? rosterPage : null;
+    if (!reloadRoster) rosterPage = null;
     selected = id;
     const revision = ++detailSequence;
     detailRevision = revision;
     activeEventPanel = null;
     detail.replaceChildren(element("h3","Detail fasilitas"),element("p","Memuat detail…","subtle"));
     try {
-        const data = await api("detail",{query:{...displayedFilters,facility:id}});
+        const data = await api("detail",{query:{...displayedFilters,facility:id},activity:!refresh});
         if (revision !== detailSequence) return;
         const facility = data.facility;
         const title = element("h3",facility.name);
@@ -262,6 +339,9 @@ async function openFacility(id, {reveal = false} = {}) {
         if (data.personnel_allowed) {
             const personnel = element("div");
             detail.append(button("Muat daftar personel",() => loadPersonnel(id,1,personnel,revision)),personnel);
+            if (reloadRoster) loadPersonnel(id,reloadRoster,personnel,revision,false);
+        } else {
+            rosterPage = null;
         }
         if (root.dataset.report === "1") detail.append(newEventForm(id));
         if (reveal) {
@@ -312,10 +392,12 @@ function renderDetailEvents(initial) {
         rows.length ? list : element("p","Tidak ada kejadian aktif.","subtle"));
 }
 
-async function loadPersonnel(id,page,container,revision) {
+async function loadPersonnel(id,page,container,revision,activity = true) {
+    if (expired || revision !== detailSequence) return;
+    rosterPage = page;
     container.textContent = "Memuat personel…";
     try {
-        const data = await api("personnel",{query:{facility:id,page}});
+        const data = await api("personnel",{query:{facility:id,page},activity});
         if (revision !== detailSequence) return;
         const list = element("ul","","atlas-list");
         for (const row of data.rows) {
@@ -374,10 +456,14 @@ async function focusFacility(id,resetFilters) {
         if (mode === "globe") globe?.focus(row);
         else if (map) {
             const marker = markerById.get(id);
-            if (marker) cluster.zoomToShowLayer(marker,() => {
-                map.panTo(marker.getLatLng(),{animate:false});
-                marker.getElement()?.focus({preventScroll:true});
-            });
+            if (marker) {
+                clearTimeout(clusterFocusTimer);
+                map.setView(marker.getLatLng(),Math.max(map.getZoom(),14),{animate:false});
+                // Allow the cluster transition to finish before expanding coincident markers.
+                if (!marker.getElement()) clusterFocusTimer = setTimeout(() => {
+                    if (!marker.getElement()) cluster?.getVisibleParent(marker)?.spiderfy?.();
+                },350);
+            }
         }
     }
     return openFacility(id,{reveal:true});
@@ -460,9 +546,10 @@ async function initMap() {
         document.head.append(stylesheet);
     }
     const [land] = await Promise.all([
-        request("/assets/data/land-110m.geojson"),
+        request("/assets/data/land-110m.geojson",{signal:sessionRequests.signal}),
         loadScript("/assets/vendor/leaflet/leaflet.js").then(() => loadScript("/assets/vendor/markercluster/leaflet.markercluster.js"))
     ]);
+    if (expired) return;
     flat.hidden = false;
     map = window.L.map(flat,{scrollWheelZoom:false,maxZoom:16});
     // Leaflet's default focus handling restores window scroll, while fullscreen
@@ -488,18 +575,13 @@ async function initMap() {
     renderMarkers();
     fitAll();
     map.on("click",event => setPoint([event.latlng.lat,event.latlng.lng]));
-    const resize = new ResizeObserver(() => { if (mode === "map") map?.invalidateSize(); });
-    resize.observe(flat);
-    window.addEventListener("pagehide",event => {
-        if (!event.persisted) {
-            resize.disconnect();
-            map.remove();
-        }
-    });
+    mapResize = new ResizeObserver(() => { if (mode === "map") map?.invalidateSize(); });
+    mapResize.observe(flat);
 }
 
 async function loadViews() {
     const rows = await api("views");
+    if (expired) return;
     saved = new Map(rows.map(row => [row.id,row]));
     const list = q("[data-saved]");
     list.replaceChildren(...(rows.length ? rows.map(row => {
@@ -523,14 +605,17 @@ async function loadViews() {
 }
 
 for (const node of root.querySelectorAll("[data-enhanced]")) node.hidden = false;
-enableFullscreen(root,() => { if (mode === "map") map?.invalidateSize(); });
-const notifications = enableEvents(root,api,{focus:id => focusFacility(id,true),showStatus,onBadges(next,current,refreshFacilities) {
+const leaveFullscreen = enableFullscreen(root,() => { if (mode === "map") map?.invalidateSize(); });
+const notifications = enableEvents(root,api,{focus:id => focusFacility(id,true),showStatus,onBadges(next,current) {
     badges = new Map(next.map(row => [String(row.facility_id),row]));
     events = current;
     refreshMarkerStyle();
     renderDetailEvents();
     compare();
-    if (refreshFacilities) applyFilters(displayedFilters,{announce:false});
+},onRefresh(revision) {
+    if (revision !== facilityRevision && !filtersLoading) {
+        applyFilters(displayedFilters,{announce:false,refresh:true});
+    }
 }});
 tableRows();
 initMap().catch(() => showStatus("Peta 2D tidak dapat dimuat. Gunakan tabel fasilitas."));
@@ -586,4 +671,6 @@ q("[data-save-view]").addEventListener("submit",async event => {
         showStatus(error.message);
     }
 });
-window.addEventListener("pagehide",event => { if (!event.persisted) globe?.dispose(); });
+window.addEventListener("pagehide",expire);
+window.addEventListener("pageshow",event => { if (event.persisted) location.reload(); });
+armExpiry(root.dataset.sessionSeconds);

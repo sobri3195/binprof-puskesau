@@ -118,20 +118,28 @@ function executiveCertificates(array $ids,array $filters,array $rules,string $to
         $populationArgs[] = $filters['specialty_id'];
     }
     return qu("WITH valid AS (
-        SELECT c.personnel_id,c.category_id,COALESCE(t.expires_on,c.expires_on) AS expiry,
+        SELECT c.personnel_id,c.category_id,COALESCE(t.expires_on,c.expires_on) AS expiry,c.validity_kind,
             GREATEST(c.updated_at,c.verified_at) AS updated_at
         FROM personnel_certificates c LEFT JOIN training_records t ON t.id=c.training_id
         WHERE c.archived_at IS NULL AND c.verification_status='verified'
+          AND (c.valid_from IS NULL OR c.valid_from<=?)
           AND (c.training_id IS NULL OR (t.archived_at IS NULL AND t.completed=1 AND c.verified_training_version=t.row_version))
           AND (c.validity_kind='unlimited' OR COALESCE(t.expires_on,c.expires_on) IS NOT NULL)
+    ), coverage AS (
+        SELECT p.facility_id,p.id,r.certificate_window,MAX(x.expiry) AS expiry,
+            MAX(CASE WHEN x.expiry IS NULL AND x.validity_kind='unlimited' THEN 1 ELSE 0 END) AS unlimited,
+            MAX(x.updated_at) AS updated_at
+        FROM personnel p JOIN facility_assessment_rules r ON r.facility_id=p.facility_id AND r.id IN ($ruleIn)
+        LEFT JOIN valid x ON x.personnel_id=p.id AND x.category_id=r.certificate_category_id
+        WHERE p.facility_id IN ($in) AND p.active=1 AND p.archived_at IS NULL$population
+        GROUP BY p.facility_id,p.id,r.certificate_window
     )
-    SELECT p.facility_id,COUNT(*) AS records,MAX(x.updated_at) AS updated_at,
-        SUM(CASE WHEN x.expiry<=TIMESTAMPADD(DAY,r.certificate_window,?) THEN 1 ELSE 0 END) AS attention,
-        MIN(CASE WHEN x.expiry<=TIMESTAMPADD(DAY,r.certificate_window,?) THEN x.expiry ELSE NULL END) AS earliest
-    FROM personnel p JOIN valid x ON x.personnel_id=p.id JOIN facility_assessment_rules r
-      ON r.facility_id=p.facility_id AND r.certificate_category_id=x.category_id AND r.id IN ($ruleIn)
-    WHERE p.facility_id IN ($in) AND p.active=1 AND p.archived_at IS NULL$population GROUP BY p.facility_id",
-        [$today,$today,...$ruleIds,...$ids,...$populationArgs])->fetchAll(PDO::FETCH_UNIQUE);
+    SELECT facility_id,COUNT(*) AS eligible,MAX(updated_at) AS updated_at,
+        SUM(CASE WHEN unlimited=1 OR expiry>=? THEN 1 ELSE 0 END) AS covered,
+        SUM(CASE WHEN unlimited=0 AND expiry<=TIMESTAMPADD(DAY,certificate_window,?) THEN 1 ELSE 0 END) AS attention,
+        MIN(CASE WHEN unlimited=0 AND expiry<=TIMESTAMPADD(DAY,certificate_window,?) THEN expiry END) AS earliest
+    FROM coverage GROUP BY facility_id",
+        [$today,...$ruleIds,...$ids,...$populationArgs,$today,$today,$today])->fetchAll(PDO::FETCH_UNIQUE);
 }
 
 function executiveAncillary(array $ids,array $filters): array

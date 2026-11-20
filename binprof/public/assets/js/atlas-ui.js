@@ -59,14 +59,14 @@ export function loadScript(path) {
     });
 }
 
-export async function request(path, {query, body, csrf} = {}) {
+export async function request(path, {query, body, csrf, signal, onResponse} = {}) {
     const target = new URL(path, location.origin);
     if (query) {
         for (const [key, val] of Object.entries(query)) {
             if (val !== null && val !== "") target.searchParams.set(key, val);
         }
     }
-    const options = {cache: "no-store", credentials: "same-origin"};
+    const options = {cache: "no-store", credentials: "same-origin", signal};
     if (body) {
         const fields = new URLSearchParams();
         for (const [key, val] of Object.entries({...body, csrf})) {
@@ -77,7 +77,8 @@ export async function request(path, {query, body, csrf} = {}) {
     }
     const response = await fetch(target, options);
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "Permintaan gagal. Coba lagi.");
+    if (!response.ok) throw Object.assign(new Error(result.error || "Permintaan gagal. Coba lagi."), {status:response.status});
+    onResponse?.(response);
     return result;
 }
 
@@ -89,6 +90,8 @@ export const timeText = (utc, zone) => utc
 export function enableFullscreen(root, resize) {
     const control = root.querySelector("[data-fullscreen]");
     let restoreFocus;
+    const controls = new AbortController();
+    const {signal} = controls;
     const background = [...document.querySelectorAll(".navigation, .page-header, .workspace > .skip")];
 
     function expanded(value) {
@@ -115,18 +118,24 @@ export function enableFullscreen(root, resize) {
                 if (!root.requestFullscreen) throw new Error("Fullscreen tidak tersedia");
                 await root.requestFullscreen();
             } catch {
-                expanded(true);
+                if (!signal.aborted) expanded(true);
             }
+            if (signal.aborted && document.fullscreenElement === root) await document.exitFullscreen().catch(() => {});
         }
-        sync();
-    });
-    document.addEventListener("fullscreenchange", sync);
+        if (!signal.aborted) sync();
+    }, {signal});
+    document.addEventListener("fullscreenchange", sync, {signal});
     document.addEventListener("keydown", event => {
         if (event.key === "Escape" && root.classList.contains("is-expanded")) {
             expanded(false);
             sync();
         }
-    });
+    }, {signal});
+    return () => {
+        controls.abort();
+        if (root.classList.contains("is-expanded")) expanded(false);
+        if (document.fullscreenElement === root) document.exitFullscreen().catch(() => {});
+    };
 }
 
 export function kilometers(origin, point) {

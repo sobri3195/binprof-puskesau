@@ -71,6 +71,15 @@ if __name__ == "__main__":
     for code in ('demo-a','demo-b'):
         a.post('/app/master/save',dict(kind='units', code=code, name='DATA DEMO '+code,active=1))
     a.post('/app/master/save',dict(kind='training_types',code='demo-course', name='DATA DEMO Pelatihan',active=1))
+    ranks, rank_ids = {}, {}
+    for suffix in ('a','b'):
+        ranks[suffix] = dict(kind='ranks',code='demo-rank-'+suffix,name='DATA DEMO Pangkat '+suffix,group_name='DATA DEMO')
+        a.post('/app/master/save', {**ranks[suffix], 'active':1})
+    master_ranks = a.call('/app/master?kind=ranks')[1]
+    for suffix, rank in ranks.items():
+        # Use the id inserted in the edit link for this exact master row.
+        row = next(row for row in re.findall(rb'<tr>.*?</tr>',master_ranks,re.S) if rank['code'].encode() in row)
+        rank_ids[suffix] = int(re.search(rb'id=(\d+)',row)[1])
     unit_types = {name:int(key) for key,name in re.findall(r'<option value="(\d+)">([^<]+)</option>', a.call('/app/master?kind=facilities')[1].decode())}
     for key, label in enumerate(('DATA DEMO demo-a','DATA DEMO demo-b')):
         a.post('/app/master/save', dict(kind='facilities',code='demo-facility-'+str(key),name='DATA DEMO Fasilitas '+str(key),active=1,
@@ -82,10 +91,22 @@ if __name__ == "__main__":
     people=[]
     for index,name in enumerate(('DATA DEMO <em>Personel A</em>', 'DATA DEMO Personel B'),1):
         people.append(location_id(a.post('/app/personel/save', dict(name=name,nrp='DEMO-'+str(index),unit_id=index,facility_id=index,
-            profession_id=1,active=1,bp='unknown',contact='555010'+str(index),nik='000000000000000'+str(index),promotion_date=today))[0]))
+            profession_id=1,rank_id=rank_ids['a'],active=1,bp='unknown',contact='555010'+str(index),
+            nik='000000000000000'+str(index),promotion_date=today))[0]))
     personnel = a.call('/app/personel')[1]
     assert b'&lt;em&gt;Personel A&lt;/em&gt;' in personnel and b'<em>Personel A</em>' not in personnel
     assert b'5550101' in a.call('/app/personel/detail?id='+people[0]+'&tab=contact')[1]
+    for suffix, rank in ranks.items():
+        a.post('/app/master/save', {**rank, 'id':rank_ids[suffix], 'active':0})
+    edit = a.call('/app/personel/edit?id='+people[0])[1]
+    assert re.search(rb'<option value="' + str(rank_ids['a']).encode() + rb'" selected>DATA DEMO Pangkat a \(nonaktif\)',edit)
+    assert b'DATA DEMO Pangkat b' not in edit
+    version = int(re.search(rb'name="version" value="(\d+)"',edit)[1])
+    update = dict(id=people[0],version=version,name='DATA DEMO <em>Personel A</em>',nrp='DEMO-1',facility_id=1,
+        profession_id=1,active=1,bp='unknown',contact='5550101',nik='0000000000000001',promotion_date=today,position_title='DATA DEMO Jabatan')
+    a.post('/app/personel/save', {**update, 'rank_id':rank_ids['b']}, 422)
+    a.post('/app/personel/save', {**update, 'rank_id':rank_ids['a']})
+    assert b'DATA DEMO Pangkat a' in a.call('/app/personel/detail?id='+people[0])[1]
     a.post('/app/personel/status',dict(id=people[0],version=999,action='archive'),409)
     a.post('/app/pelatihan/save', dict(personnel_id=people[0],type_id=1,organizer='test',completed=1,started_on='2022-02-28',ended_on='2022-02-20'),422)
     training=location_id(a.post('/app/pelatihan/save', dict(personnel_id=people[0],type_id=1,organizer='=SYNTHETIC',completed=1,expires_on=today))[0])

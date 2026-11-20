@@ -174,6 +174,7 @@ function mapEventsPoll(array $user): never
         }
         return [
             'revision'=>(string) $revision, 'personal'=>(string) $preferences['revision'],
+            'refresh_revision'=>(string) $revisions['refresh_revision'],
             'reset'=>$reset, 'refresh_facilities'=>$invalidate, 'events'=>array_slice($events,0,200), 'changed'=>$changed,
             'badges'=>$changed ? mapBadges($user) : null, 'preferences'=>$preferences,
             'synced_at'=>gmdate(DATE_ATOM),

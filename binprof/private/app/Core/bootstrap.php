@@ -239,3 +239,4 @@ function reportFailure(Throwable $error): void
 
 require __DIR__ . '/http.php';
 require __DIR__ . '/auth.php';
+require PROJECT . '/private/app/Services/map-revision.php';

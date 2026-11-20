@@ -12,7 +12,7 @@ function profileHistory(array $user,string $personnel,string $tab,string $id,int
             AND state IN ('verified','approved')",[$personnel,$id])->fetchColumn();
         if ($retirement !== false) {
             retirementInvalidateNotifications($retirement);
-            retirementRefreshMap();
+            mapRefreshFacilities();
         }
     }
 }

@@ -73,6 +73,9 @@ function requestTransfer(array $user): never
             fail(422, 'Personel aktif dalam daftar dan satuan tujuan yang berbeda diperlukan.');
         }
         verifyUnitFacility($target, $facility);
+        if (transferHistoryConflict($personId, $effective)) {
+            fail(422, 'Tanggal efektif mendahului awal riwayat kedinasan terbuka.');
+        }
         if (qu("SELECT 1 FROM unit_transfers WHERE personnel_id=? AND status IN ('pending','approved')", [$personId])->fetchColumn()) {
             fail(409, 'Sudah ada pengajuan aktif untuk personel ini.');
         }

@@ -177,6 +177,19 @@ def main():
     assert refreshed["changed"] and refreshed["rows"][0]["assessments"]["quality"]["level"] == "gray"
     leader.post(HOME + "/snapshot", {})
     assert aggregate(leader, mode="history", date=DAY)["rows"][0]["gap"] == 1
+
+    # A second proof for the same person replaces their expiring evidence
+    # without covering anyone else on the active roster.
+    renewed = rec(writer, personnel, "certificates", dict(category_id=category,title="DATA DEMO Perpanjangan",
+        document_no="DEMO-CERT-EXEC-RENEWED",issued_on=PAST,valid_from=PAST,validity_kind="dated",
+        expires_on=(DATE+timedelta(days=365)).isoformat()))
+    review(reviewer, personnel, "certificates", renewed)
+    current = aggregate(leader)["rows"][0]
+    assessment = current["assessments"]["certificate"]
+    assert current["totals"]["active"] > 1
+    assert assessment["level"] == "gray" and assessment["actual"] == 0
+    assert f'1 dari {current["totals"]["active"]} personel' in assessment["reason"]
+
     leader.post("/logout", {})
     leader.call(DATA, status=401)
     print("Peta Kendali: scope dan landing, KPI, data kosong, aturan dan target, sertifikat, kejadian, proyeksi, arahan, dokumen, preset, snapshot, delta, PDF dan sesi lulus.")

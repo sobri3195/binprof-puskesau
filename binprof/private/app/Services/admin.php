@@ -7,31 +7,39 @@ const MASTERS = [
     'facilities' => 'Fasilitas', 'training_types' => 'Jenis diklat',
 ];
 
-function optionsFor(string $table, ?array $user = null, bool $activeOnly = true): array
+function optionsFor(string $table, ?array $user = null, bool $activeOnly = true, ?int $retain = null): array
 {
     if (!isset(MASTERS[$table])) {
         throw new LogicException('Unknown master table');
     }
     $where = $activeOnly ? 'm.active=1' : '1=1';
     $params = [];
+    $label = 'm.name';
+    if ($activeOnly && $retain !== null) {
+        $where = '(m.active=1 OR m.id=?)';
+        $params[] = $retain;
+        $label = "CASE WHEN m.active=1 THEN m.name ELSE CONCAT(m.name,' (nonaktif)') END";
+    }
     if ($user && $table === 'facilities') {
-        [$scoped, $params] = scope($user, 'm.unit_id', 'm.id');
+        [$scoped, $scopeArgs] = scope($user, 'm.unit_id', 'm.id');
         $where .= " AND $scoped";
+        array_push($params, ...$scopeArgs);
     } elseif ($user && $table === 'units' && $user['role_code'] !== 'super_admin') {
-        [$scoped, $params] = scope($user, 'm.id');
+        [$scoped, $scopeArgs] = scope($user, 'm.id');
         $where .= " AND ($scoped OR EXISTS (SELECT 1 FROM user_facility_scopes fs
             JOIN facilities f ON f.id=fs.facility_id WHERE fs.user_id=? AND f.unit_id=m.id))";
+        array_push($params, ...$scopeArgs);
         $params[] = $user['id'];
     }
-    return qu("SELECT m.id,m.name FROM $table m WHERE $where ORDER BY m.name,m.id", $params)->fetchAll(PDO::FETCH_KEY_PAIR);
+    return qu("SELECT m.id,$label FROM $table m WHERE $where ORDER BY m.name,m.id", $params)->fetchAll(PDO::FETCH_KEY_PAIR);
 }
 
-function verifyMaster(string $table, ?int $id, bool $required = true): ?int
+function verifyMaster(string $table, ?int $id, bool $required = true, ?int $retain = null): ?int
 {
     if (!isset(MASTERS[$table]) || ($id === null && $required)) {
         fail(422, 'Lengkapi pilihan master.');
     }
-    if ($id !== null && !qu("SELECT 1 FROM $table WHERE id=? AND active=1", [$id])->fetchColumn()) {
+    if ($id !== null && !qu("SELECT 1 FROM $table WHERE id=? AND (active=1 OR id=?)", [$id, $retain])->fetchColumn()) {
         fail(422, 'Pilihan master tidak tersedia.');
     }
     return $id;

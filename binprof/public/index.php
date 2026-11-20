@@ -33,7 +33,11 @@ try {
         whatsappWebhook($method);
     }
     sessionBegin();
+    $mapApi = str_starts_with($route, '/api/maps/');
     if ($method === 'POST') {
+        if ($mapApi && !isset($_SESSION['handle'])) {
+            fail(401, 'Masuk terlebih dahulu.');
+        }
         checkCsrf();
     }
     if ($route === '/setup' && in_array($method, ['GET', 'POST'], true)) {
@@ -61,7 +65,8 @@ try {
     if (!installed()) {
         fail(503, 'Instalasi belum selesai. Jalankan bootstrap akun pertama.');
     }
-    $user = currentUser($route !== '/api/executive/data' || ($_GET['activity'] ?? '') === '1');
+    $passive = $method === 'GET' && ($mapApi || $route === '/api/executive/data');
+    $user = currentUser(!$passive || ($_GET['activity'] ?? '') === '1');
     if (in_array($route, ['/', '/index.php', '/login'], true) && $method === 'GET') {
         if ($user) {
             redirect(homeFor($user));
@@ -98,6 +103,9 @@ try {
     }
     if (!can($user, $permission)) {
         fail(403, 'Akses ditolak.');
+    }
+    if ($mapApi) {
+        header('X-Binprof-Session-Seconds: ' . max(0, $user['expires_at'] - time()));
     }
     require_once PROJECT . '/private/app/Controllers/' . $controller . '.php';
     $function($user);

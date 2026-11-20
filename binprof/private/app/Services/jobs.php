@@ -10,6 +10,13 @@ function notify(int $user, string $key, string $message): void
         ON DUPLICATE KEY UPDATE event_key=VALUES(event_key)', [$user, $key, $message]);
 }
 
+function transferHistoryConflict(string $person, string $effective): bool
+{
+    // The caller holds the personnel row lock for this history.
+    return (bool) qu('SELECT 1 FROM service_history WHERE personnel_id=? AND ended_on IS NULL
+        AND started_on>? LIMIT 1 FOR UPDATE', [$person,$effective])->fetchColumn();
+}
+
 function applyTransfer(string $id, ?int $actor = null): bool
 {
     return tx(static function () use ($id, $actor): bool {
@@ -37,10 +44,13 @@ function applyTransfer(string $id, ?int $actor = null): bool
                 $valid = false;
             }
         }
-        if (!$valid) {
+        $conflict = $valid && transferHistoryConflict($person['id'], $transfer['effective_on']);
+        if (!$valid || $conflict) {
             qu("UPDATE unit_transfers SET status='rejected' WHERE id=?", [$id]);
-            notify((int) $transfer['requester_id'], "transfer:$id:invalidated", 'Pengajuan mutasi tidak dapat diterapkan. Periksa status pada menu Mutasi.');
-            audit($actor, 'invalidate_transfer', 'unit_transfers', $id, $from);
+            $message = $conflict ? 'Mutasi tidak diterapkan karena tanggal efektif mendahului awal riwayat kedinasan terbuka.'
+                : 'Pengajuan mutasi tidak dapat diterapkan. Periksa status pada menu Mutasi.';
+            notify((int) $transfer['requester_id'], "transfer:$id:invalidated", $message);
+            audit($actor, $conflict ? 'invalidate_transfer_history' : 'invalidate_transfer', 'unit_transfers', $id, $from);
             return false;
         }
         qu('UPDATE personnel SET unit_id=?,facility_id=?,row_version=row_version+1 WHERE id=?', [$to,$facility,$person['id']]);
@@ -51,6 +61,7 @@ function applyTransfer(string $id, ?int $actor = null): bool
         qu("UPDATE unit_transfers SET status='applied',applied_at=UTC_TIMESTAMP() WHERE id=?", [$id]);
         notify((int) $transfer['requester_id'], "transfer:$id:applied", 'Mutasi yang Anda ajukan telah diterapkan.');
         audit($actor, 'apply_transfer', 'unit_transfers', $id, $from);
+        mapRefreshFacilities();
         return true;
     });
 }
